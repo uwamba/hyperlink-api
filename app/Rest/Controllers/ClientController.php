@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Rest\Resources\ClientResource;
 use Illuminate\Http\Request;
 
+
 class ClientController extends RestController
 {
     /**

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Laravel\Passport\Passport;
 use App\Rest\Controller as RestController;
 
+
 class AuthController extends RestController
 {
     public function register(Request $request)
