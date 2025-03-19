@@ -6,6 +6,10 @@ use App\Models\Invoice;
 use App\Rest\Resources\InvoiceResource;
 use Illuminate\Http\Request;
 use App\Rest\Controller as RestController;
+use App\Models\Subscription;
+use Barryvdh\DomPDF\Facade\Pdf as pdf;
+
+
 class InvoiceController extends RestController
 {
     // List all invoices
@@ -63,4 +67,30 @@ class InvoiceController extends RestController
 
         return response()->json(['message' => 'Invoice deleted successfully'], 200);
     }
+
+    public function generateInvoice($subscriptionId)
+    {
+        // Fetch the subscription, client, and plan
+    $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
+    
+    // Create the invoice data
+    $amount = $subscription->plan->price;
+    $invoiceData = [
+        'client' => $subscription->client,
+        'plan' => $subscription->plan,
+        'amount' => $amount,
+        'start_date' => $subscription->start_date,
+        'end_date' => $subscription->end_date,
+        'issue_date' => now()->toDateString(),
+        'due_date' => now()->addDays(30)->toDateString(),
+    ];
+            // Load the Blade view and pass the invoice data
+        $pdf = pdf::loadView('invoice', $invoiceData);
+
+         // Return the PDF as a download
+        return $pdf->download('invoice_' . $subscription->id . '.pdf');
+
+        //return response()->json($invoice);
+    }
+
 }

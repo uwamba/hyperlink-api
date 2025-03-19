@@ -13,6 +13,10 @@ class Client extends Model {
         'email',
         'phone',
         'address',
+        'invoice_cycle',  //invoicing cycle monthly ,annoualy,weekly ...
+        'invoicing_date', //date of invoicing
+        'invoice_generation_type',//manual or auto
+
     ];
 
     /**

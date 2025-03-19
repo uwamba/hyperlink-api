@@ -24,6 +24,9 @@ Route::resource('subscriptions', SubscriptionController::class);
 Route::resource('billings', BillingController::class);
 Route::resource('payments', PaymentController::class);
 Route::resource('invoices', InvoiceController::class);
+Route::post('/generate-invoice/{subscriptionId}', [InvoiceController::class, 'generateInvoice']);
+
+
 
 
 Route::post('register', [AuthController::class, 'register']);
