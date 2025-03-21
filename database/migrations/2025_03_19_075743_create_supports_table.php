@@ -8,8 +8,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('supports', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('client_id')->constrained()->onDelete('cascade');
+            $table->uuid('id')->primary();;
+            $table->uuid('client_id');
             $table->string('email');
             $table->text('description');
             $table->string('address');

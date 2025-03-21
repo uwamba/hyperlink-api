@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 class Support extends Model
-{
-    use HasFactory;
 
+{
+ 
+    use  HasUuids;
     /**
      * The table associated with the model.
      *

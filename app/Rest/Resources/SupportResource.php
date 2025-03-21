@@ -2,55 +2,24 @@
 
 namespace App\Rest\Resources;
 
-use Lomkit\Rest\Http\Resource;
-use App\Models\Support;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 
-class SupportResource extends Resource
+class SupportResource extends JsonResource
 {
     /**
-     * The model associated with this resource.
-     *
-     * @var class-string<\Illuminate\Database\Eloquent\Model>
+     * Transform the resource into an array.
      */
-    public static $model = Support::class;
-
-    /**
-     * The fields that should be available in API responses.
-     */
-    public function fields(): array
+    public function toArray(Request $request): array
     {
         return [
-            $this->field('id')->readOnly(),
-            $this->field('client_id')->integer(),
-            $this->field('email')->string()->searchable(),
-            $this->field('description')->text(),
-            $this->field('address')->string(),
-            $this->field('created_at')->readOnly(),
-            $this->field('updated_at')->readOnly(),
-        ];
-    }
-
-    /**
-     * The filters that can be applied to queries.
-     */
-    public function filters(): array
-    {
-        return [
-            $this->filter('client_id')->integer(),
-            $this->filter('email')->string(),
-            $this->filter('address')->string(),
-        ];
-    }
-
-    /**
-     * The available actions for this resource.
-     */
-    public function actions(): array
-    {
-        return [
-            $this->create(),
-            $this->update(),
-            $this->delete(),
+            'id' => $this->id,
+            'client_id' => $this->client_id,
+            'email' => $this->email,
+            'description' => $this->description,
+            'address' => $this->address,
+            'created_at' => $this->created_at->toDateTimeString(),
+            'updated_at' => $this->updated_at->toDateTimeString(),
         ];
     }
 }

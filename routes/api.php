@@ -11,9 +11,7 @@ use App\Rest\Controllers\SupportController;
 
 use App\Rest\Controllers\AuthController;
 
-Route::get('test', function () {
-    return response()->json(['message' => 'Test route is working!']);
-});
+
 \Lomkit\Rest\Facades\Rest::resource('users', \App\Rest\Controllers\UsersController::class);
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
