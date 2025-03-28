@@ -23,6 +23,8 @@ Route::resource('plans', PlanController::class);
 Route::resource('subscriptions', SubscriptionController::class);
 Route::resource('billings', BillingController::class);
 Route::resource('payments', PaymentController::class);
+
+Route::get('invoices/unpaid', [InvoiceController::class, 'unpaid'])->name('invoices.unpaid');
 Route::resource('invoices', InvoiceController::class);
 Route::post('/generate-invoice/{subscriptionId}', [InvoiceController::class, 'generateInvoice']);
 

@@ -9,27 +9,42 @@ use Illuminate\Support\Facades\Hash;
 use Laravel\Passport\Passport;
 use App\Rest\Controller as RestController;
 
+use Illuminate\Validation\ValidationException;
+use Exception;
+
 
 class AuthController extends RestController
 {
     public function register(Request $request)
-    {
-        $request->validate([
+{
+    try {
+        // Validate request data
+        $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|unique:users',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
+        // Create user
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $validatedData['name'],
+            'email' => $validatedData['email'],
+            'password' => Hash::make($validatedData['password']),
         ]);
+        if (!$user) {
+            return response()->json(['error' => 'User creation failed'], 500);
+        }
 
+        // Generate API token
         $token = $user->createToken('API Token')->accessToken;
 
         return response()->json(['user' => $user, 'token' => $token], 201);
+    } catch (ValidationException $e) {
+        return response()->json(['error' => 'Validation failed', 'messages' => $e->errors()], 422);
+    } catch (Exception $e) {
+        return response()->json(['error' => 'Something went wrong', 'message' => $e->getMessage()], 500);
     }
+}
 
     public function login(Request $request)
     {
