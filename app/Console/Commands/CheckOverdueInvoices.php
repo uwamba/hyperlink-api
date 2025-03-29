@@ -15,7 +15,7 @@ class CheckOverdueInvoices extends Command
     {
         $today = Carbon::today();
 
-        echo 'cron tab runnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn';
+        echo 'cron tab r';
 
         $overdueInvoices = Invoice::where('status', 'unpaid')
             ->where('due_date', '<', $today)

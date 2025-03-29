@@ -1,4 +1,5 @@
-<?php
+<?php 
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,16 +14,11 @@ class Client extends Model {
         'email',
         'phone',
         'address',
-        'invoice_cycle',  //invoicing cycle monthly ,annoualy,weekly ...
-        'invoicing_date', //date of invoicing
-        'invoice_generation_type',//manual or auto
-
     ];
 
     /**
-     * Get the subscription associated with the client.
+     * Get the billings associated with the client.
      */
-    
     public function billings() {
         return $this->hasMany(Billing::class);
     }
@@ -54,4 +50,20 @@ class Client extends Model {
     public function activeSubscription() {
         return $this->hasOne(Subscription::class)->where('status', 'active');
     }
+
+    /**
+     * Get all the invoices associated with the client through payments.
+     */
+    public function invoices() {
+        return $this->hasManyThrough(
+            Invoice::class,   // The model to fetch invoices
+            Payment::class,   // The intermediate model (Payments connect to Invoices)
+            'client_id',      // Foreign key on the payments table
+            'payment_id',     // Foreign key on the invoices table (assuming invoice has payment_id)
+            'id',             // Local key on the clients table
+            'id'              // Local key on the payments table
+        );
+    }
 }
+
+

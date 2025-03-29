@@ -65,7 +65,8 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'Africa/Kigali',  // Set it to Kigali timezone (Rwanda)
+
 
     /*
     |--------------------------------------------------------------------------

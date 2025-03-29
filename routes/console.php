@@ -11,4 +11,6 @@ Artisan::command('inspire', function () {
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('invoices:check-overdue')->dailyAt('00:00');
+//Schedule::command('subscriptions:process')->dailyAt('00:00');
+Schedule::command('subscriptions:process')->everyMinute();
+

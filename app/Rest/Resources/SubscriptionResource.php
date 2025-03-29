@@ -32,6 +32,7 @@ class SubscriptionResource extends JsonResource
             ],
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,
+            'billing_date' => $this->billing_date,
             'status' => $this->status,
             'created_at' => $this->created_at->toDateString(),
             'updated_at' => $this->updated_at->toDateString(),

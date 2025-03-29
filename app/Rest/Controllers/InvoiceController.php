@@ -19,12 +19,23 @@ class InvoiceController extends RestController
         return InvoiceResource::collection($invoices);
     }
     public function unpaid()
-{
-    // Fetch only invoices with a status of 'unpaid'
-    $invoices = Invoice::where('status', 'unpaid')->get();
-    return InvoiceResource::collection($invoices);
-}
-
+    {
+        // Fetch only invoices with a status of 'unpaid'
+        $invoices = Invoice::where('status', 'unpaid')->get();
+        return InvoiceResource::collection($invoices);
+    }
+    public function paid()
+    {
+        // Fetch only invoices with a status of 'unpaid'
+        $invoices = Invoice::where('status', 'paid')->get();
+        return InvoiceResource::collection($invoices);
+    }
+    public function overdue()
+    {
+        // Fetch only invoices with a status of 'unpaid'
+        $invoices = Invoice::where('status', 'overdue')->get();
+        return InvoiceResource::collection($invoices);
+    }
     // Show a specific invoice
     public function show($id)
     {
@@ -75,45 +86,94 @@ class InvoiceController extends RestController
     }
 
 
-public function generateInvoice($subscriptionId)
+    public function generateInvoice($subscriptionId)
 {
     // Fetch the subscription with related client and plan
     $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
-    
+
+    // Check if an invoice was already generated for this subscription in the current month
+    $existingInvoice = Invoice::where('client_id', $subscription->client->id)
+        ->whereYear('created_at', now()->year)
+        ->whereMonth('created_at', now()->month)
+        ->first();
+
+    if ($existingInvoice) {
+        // If an invoice already exists for the current month, return the existing one
+        $invoiceData = [
+            'invoice' => $existingInvoice,
+            'client' => $subscription->client,
+            'plan' => $subscription->plan,
+            'amount' => $existingInvoice->amount,
+            'start_date' => $subscription->start_date,
+            'end_date' => $subscription->end_date,
+            'issue_date' => $existingInvoice->created_at->toDateString(),
+            'due_date' => $existingInvoice->due_date,
+        ];
+
+        $pdf = PDF::loadView('invoice', $invoiceData);
+
+        return $pdf->download('invoice_' . $existingInvoice->invoice_no . '.pdf');
+    }
+
     // Calculate amount based on the subscription's plan
     $amount = $subscription->plan->price;
-    
-    // Generate a unique invoice number (customize as needed)
-    $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('YmdHis');
-    
-    // Create invoice record in the database
+
+    // Generate a unique invoice number
+    $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('Ym');
+
+    // Create a new invoice record
     $invoice = Invoice::create([
-        'client_id'  => $subscription->client->id,
+        'client_id' => $subscription->client->id,
         'invoice_no' => $invoiceNo,
-        'amount'     => $amount,
-        'due_date'   => now()->addDays(30)->toDateString(),
-        'status'     => 'unpaid', // default status; update later as payments are made
+        'amount' => $amount,
+        'due_date' => now()->addDays(30)->toDateString(),
+        'status' => 'unpaid',
     ]);
-    
-    // Prepare the data for the invoice PDF view
+
+    // Prepare invoice data for the PDF
     $invoiceData = [
-        'invoice'    => $invoice,
-        'client'     => $subscription->client,
-        'plan'       => $subscription->plan,
-        'amount'     => $amount,
+        'invoice' => $invoice,
+        'client' => $subscription->client,
+        'plan' => $subscription->plan,
+        'amount' => $amount,
         'start_date' => $subscription->start_date,
-        'end_date'   => $subscription->end_date,
+        'end_date' => $subscription->end_date,
         'issue_date' => now()->toDateString(),
-        'due_date'   => now()->addDays(30)->toDateString(),
+        'due_date' => now()->addDays(30)->toDateString(),
     ];
-    
-    // Generate the PDF using the Blade view named 'invoice'
-    // Adjust the PDF facade if you're using a different package (e.g., dompdf, snappy, etc.)
+
     $pdf = PDF::loadView('invoice', $invoiceData);
-    
-    // Return the PDF as a download with a name based on the invoice number
+
     return $pdf->download('invoice_' . $invoice->invoice_no . '.pdf');
 }
+
+public function downloadInvoice($invoiceId)
+{
+    // Fetch the invoice along with the related client and subscription plan
+    $invoice = Invoice::with(['client'])->findOrFail($invoiceId);
+
+    // Retrieve the subscription related to the invoice
+    $subscription = Subscription::where('client_id', $invoice->client_id)->firstOrFail();
+
+    // Prepare invoice data for the PDF
+    $invoiceData = [
+        'invoice' => $invoice,
+        'client' => $invoice->client,
+        'plan' => $subscription->plan,
+        'amount' => $invoice->amount,
+        'start_date' => $subscription->start_date,
+        'end_date' => $subscription->end_date,
+        'issue_date' => $invoice->created_at->toDateString(),
+        'due_date' => $invoice->due_date,
+    ];
+
+    // Generate the invoice PDF
+    $pdf = PDF::loadView('invoice', $invoiceData);
+
+    // Return the PDF as a download with a formatted file name
+    return $pdf->download('invoice_' . $invoice->invoice_no . '.pdf');
+}
+
 
 
 }

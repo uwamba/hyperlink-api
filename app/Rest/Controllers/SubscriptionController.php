@@ -6,6 +6,7 @@ use App\Models\Subscription;
 use App\Rest\Resources\SubscriptionResource;
 use Illuminate\Http\Request;
 use App\Rest\Controller as RestController;
+use Carbon\Carbon;
 
 class SubscriptionController extends RestController
 {
@@ -37,6 +38,9 @@ class SubscriptionController extends RestController
             'end_date' => 'required|date',
             'status' => 'required|string',
         ]);
+
+        // Check if billing_date is provided; if not, set it to the last day of the current month
+        $validated['billing_date'] = $request->billing_date ?? Carbon::now()->endOfMonth()->toDateString();
 
         // Create the subscription using validated data
         $subscription = Subscription::create($validated);
