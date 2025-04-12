@@ -11,8 +11,11 @@ use App\Rest\Controllers\InvoiceController;
 use App\Rest\Controllers\AuthController;
 use App\Rest\Controllers\JobController;
 use App\Rest\Controllers\DashboardStatisticsController;
+use App\Rest\Controllers\SupportController; 
+use App\Rest\Controllers\UsersController;
+use App\Rest\Controllers\ExpenseController;
+use App\Rest\Controllers\SupplierController;
 
-\Lomkit\Rest\Facades\Rest::resource('users', \App\Rest\Controllers\UsersController::class);
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
@@ -34,9 +37,15 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/generate-invoice/{subscriptionId}', [InvoiceController::class, 'generateInvoice']);
     Route::post('/download-invoice/{subscriptionId}', [InvoiceController::class, 'downloadInvoice']);
     Route::get('/failed-jobs', [JobController::class, 'showFailedJobs']);
+    Route::resource('expenses', ExpenseController::class);
+    
 
     // Retry a failed job
     Route::post('/retry-failed-job/{jobId}', [JobController::class, 'retryFailedJob']);
+
+   
+
+Route::apiResource('users', UsersController::class);
 
    
 
@@ -46,10 +55,13 @@ Route::middleware('auth:api')->group(function () {
 Route::get('/client-statistics', [DashboardStatisticsController::class, 'index']);
 
 // routes/api.php
+Route::resource('suppliers', SupplierController::class);
 
-use App\Http\Controllers\SupportController;
-
-Route::post('/support', [SupportController::class, 'create']);
+Route::post('/support', [SupportController::class, 'store']);
 Route::put('/support/{id}/status', [SupportController::class, 'updateStatus']);
 Route::get('/supports', [SupportController::class, 'index']);
 Route::get('/support/{id}', [SupportController::class, 'show']);
+
+Route::middleware(['role:admin'])->get('/admin/dashboard', function () {
+    return response()->json(['message' => 'Welcome, Admin!']);
+});

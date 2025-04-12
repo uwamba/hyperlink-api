@@ -2,61 +2,91 @@
 
 namespace App\Rest\Controllers;
 
-// app/Http/Controllers/SupportController.php
 
 use App\Models\Support;
+use App\Rest\Resources\SupportResource;
 use Illuminate\Http\Request;
-use App\Rest\Controller as RestController; 
-use App\Rest\Resources\SupportResource;    
+use Illuminate\Http\Response;
+use App\Rest\Controller as RestController;
+use Illuminate\Validation\ValidationException;
+use Exception;
+
+
+
+
 class SupportController extends RestController
 {
-    public function create(Request $request)
-{
-    $validated = $request->validate([
-        'client_name' => 'required|string|max:255',
-        'client_email' => 'required|email|max:255',
-        'client_phone' => 'required|string|max:15',
-        'inquiry' => 'required|string',
-    ]);
 
-    $support = Support::create([
-        'client_name' => $validated['client_name'],
-        'client_email' => $validated['client_email'],
-        'client_phone' => $validated['client_phone'],
-        'inquiry' => $validated['inquiry'],
-        'status' => 'logged',
-    ]);
 
-    // Return the support inquiry as a resource
-    return new SupportResource($support);
-}
-
-    public function updateStatus(Request $request, $id)
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
     {
-        $validated = $request->validate([
-            'status' => 'required|in:logged,active,resolved,closed',
+        return SupportResource::collection(Support::all());
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'client_id' => 'nullable|string',
+            'email' => 'required|email',
+            'description' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
         ]);
 
-        $support = Support::findOrFail($id);
-        $support->status = $validated['status'];
-        $support->save();
-
-        return response()->json(['message' => 'Support status updated successfully', 'support' => $support]);
+        $client = Support::create($data);
+        return new SupportResource($client);
     }
 
-    public function index()
-{
-    $supports = Support::all();
-
-    // Return a collection of supports as resources
-    return  SupportResource::collection($supports);
-}
-
-    public function show($id)
+    /**
+     * Display the specified resource.
+     */
+    public function show(Support $support)
     {
-        // Fetch a specific support inquiry
-        $support = Support::findOrFail($id);
-        
-        return  SupportResource::collection($support);
+        return new SupportResource($support);
     }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @method PATCH
+ 
+     */
+    public function update(Request $request, Support $support)
+    {
+
+        $validated = $request->validate([
+            'client_id' => 'required|string|max:255',
+            'email' => 'required|email|unique:clients,email',
+            'description' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+        ]);
+
+        $support->update($validated);
+
+        return new SupportResource($support);
+    }
+
+    public function destroy($support)
+    {
+        $support = Support::find($support);
+
+        if (!$support) {
+            return response()->json(['message' => 'Support request not found'], 404);
+        }
+
+        $support->delete();
+
+
+        return response()->json(['message' => 'Support deleted successfully'], 200);
+    }
+
+
+    /**
+     * Remove the specified resource from storage.
+     */
 }
