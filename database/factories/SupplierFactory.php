@@ -14,7 +14,6 @@ class SupplierFactory extends Factory
     public function definition(): array
     {
         return [
-            'supplier_id' => (string) Str::uuid(),
             'name' => $this->faker->company,
             'address' => $this->faker->address,
             'telephone' => $this->faker->phoneNumber,

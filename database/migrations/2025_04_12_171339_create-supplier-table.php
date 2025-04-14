@@ -12,7 +12,6 @@ return new class extends Migration {
     {
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id(); // Auto-incrementing primary key
-            $table->uuid('supplier_id')->unique(); // UUID column
             $table->string('name');
             $table->string('address')->nullable();
             $table->string('telephone')->nullable();

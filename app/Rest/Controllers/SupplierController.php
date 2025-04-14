@@ -26,7 +26,6 @@ class SupplierController extends RestController
     public function store(Request $request)
     {
         $data = $request->validate([
-            'supplier_id' => 'required|string|max:255',
             'name' => 'required|string|max:255',
             'address' => 'nullable|string',
             'telephone' => 'nullable|string|max:20',

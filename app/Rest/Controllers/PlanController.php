@@ -31,18 +31,32 @@ class PlanController extends RestController
      *
      */
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|unique:plans,name',
-            'price' => 'required|numeric',
-            'duration' => 'required|integer',
-            'description' => 'nullable|string',
-        ]);
+{
+    // Validate incoming request data, including supplier_id and provider_name
+    $validated = $request->validate([
+        'name' => 'required|string|unique:plans,name',
+        'price' => 'required|numeric',
+        'provider_price' => 'required|numeric',
+        'duration' => 'required|integer',
+        'description' => 'nullable|string',
+        'supplier_id' => 'required|exists:suppliers,id', // Ensure the supplier exists in the suppliers table
+        'provider_name' => 'required|string', // Validate that provider_name is provided
+    ]);
 
-        $plan = Plan::create($validated);
+    // Create the new plan with the validated data
+    $plan = Plan::create([
+        'name' => $validated['name'],
+        'price' => $validated['price'],
+        'provider_price' => $validated['provider_price'],
+        'duration' => $validated['duration'],
+        'description' => $validated['description'],
+        'supplier_id' => $validated['supplier_id'],
+        'provider_name' => $validated['provider_name'],
+    ]);
 
-        return new PlanResource($plan);
-    }
+    // Return the created plan as a resource
+    return new PlanResource($plan);
+}
 
     
 

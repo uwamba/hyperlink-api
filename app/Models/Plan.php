@@ -14,6 +14,9 @@ class Plan extends Model {
         'price',
         'duration',
         'description',
+        'provider_name',
+        'supplier_id',
+        'provider_price',
     ];
 
     /**
@@ -21,5 +24,23 @@ class Plan extends Model {
      */
     public function subscriptions() {
         return $this->hasMany(Subscription::class);
+    }
+    public function supplier()
+{
+    return $this->belongsTo(Supplier::class);
+}
+
+    /**
+     * Get the plan's price in a formatted way.
+     */
+    public function getFormattedPriceAttribute() {
+        return number_format($this->price, 2);
+    }
+
+    /**
+     * Get the plan's duration in a formatted way.
+     */
+    public function getFormattedDurationAttribute() {
+        return $this->duration . ' days';
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Rest\Resources;
 
-
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class SubscriptionResource extends JsonResource
@@ -19,16 +18,26 @@ class SubscriptionResource extends JsonResource
             'id' => $this->id,
             'client' => [
                 'id' => $this->client_id,
-                'name' => $this->client->name,  // Assuming the 'name' field exists in the Client model
-                'email' => $this->client->email, 
-                'address' => $this->client->address, 
-                'phone' => $this->client->phone,   // You can add other client-related fields as needed
+                'name' => $this->client->name,
+                'email' => $this->client->email,
+                'address' => $this->client->address,
+                'phone' => $this->client->phone,
             ],
             'plan' => [
                 'id' => $this->plan_id,
-                'name' => $this->plan->name,  // Assuming the 'name' field exists in the Plan model
-                'description' => $this->plan->description,  // Add more plan details as necessary
-                'price' => $this->plan->price,  // Assuming the 'price' field exists in the Plan model
+                'name' => $this->plan->name,
+                'description' => $this->plan->description,
+                'price' => $this->plan->price,
+                'provider_name' => $this->plan->provider_name,
+                'provider_price' => $this->plan->provider_price,
+                'supplier' => $this->whenLoaded('plan.supplier', function () {
+                    return [
+                        'id' => $this->plan->supplier->id,
+                        'name' => $this->plan->supplier->name,
+                        'email' => $this->plan->supplier->email ?? null,
+                        // Add more supplier fields if needed
+                    ];
+                }),
             ],
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,
