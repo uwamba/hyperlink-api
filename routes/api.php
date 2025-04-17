@@ -15,6 +15,8 @@ use App\Rest\Controllers\SupportController;
 use App\Rest\Controllers\UsersController;
 use App\Rest\Controllers\ExpenseController;
 use App\Rest\Controllers\SupplierController;
+use App\Rest\Controllers\ProductController;
+use App\Rest\Controllers\ItemController;
 
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
@@ -38,6 +40,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/download-invoice/{subscriptionId}', [InvoiceController::class, 'downloadInvoice']);
     Route::get('/failed-jobs', [JobController::class, 'showFailedJobs']);
     Route::resource('expenses', ExpenseController::class);
+    Route::resource('products', ProductController::class);
+    Route::resource('items', ItemController::class);
     
 
     // Retry a failed job
