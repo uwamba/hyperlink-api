@@ -7,7 +7,6 @@ use App\Rest\Resources\PaymentResource;
 use Illuminate\Http\Request;
 use App\Rest\Controller as RestController;
 
-
 class PaymentController extends RestController
 {
     // List all payments
@@ -51,4 +50,34 @@ class PaymentController extends RestController
 
         return response()->json(['message' => 'Payment deleted successfully'], 200);
     }
+
+
+
+    public function updateStatus(Request $request, Payment $payment)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+        ]);
+
+        // Update payment status
+        $payment->status = $request->status;
+        $payment->save();
+
+        // Update invoice status accordingly
+        if ($payment->invoice) {
+            $invoice = $payment->invoice;
+
+            if ($payment->status === 'approved') {
+                $invoice->status = 'paid';
+            } elseif ($payment->status === 'rejected') {
+                $invoice->status = 'unpaid';
+            }
+
+            $invoice->save();
+        }
+
+        return response()->json(['message' => 'Payment and invoice status updated successfully.']);
+    }
+
+
 }

@@ -17,6 +17,9 @@ use App\Rest\Controllers\ExpenseController;
 use App\Rest\Controllers\SupplierController;
 use App\Rest\Controllers\ProductController;
 use App\Rest\Controllers\ItemController;
+use App\Rest\Controllers\AssetController;
+use App\Rest\Controllers\PurchaseController;
+use App\Rest\Controllers\DeliveryNoteController;
 
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
@@ -31,6 +34,9 @@ Route::middleware('auth:api')->group(function () {
     Route::resource('subscriptions', SubscriptionController::class);
     Route::resource('billings', BillingController::class);
     Route::resource('payments', PaymentController::class);
+
+    Route::put('/payments/{payment}/status', [PaymentController::class, 'updateStatus']);
+
 
     Route::get('invoices/unpaid', [InvoiceController::class, 'unpaid'])->name('invoices.unpaid');
     Route::get('invoices/paid', [InvoiceController::class, 'paid'])->name('invoices.paid');
@@ -47,6 +53,11 @@ Route::middleware('auth:api')->group(function () {
     // Retry a failed job
     Route::post('/retry-failed-job/{jobId}', [JobController::class, 'retryFailedJob']);
 
+ 
+
+
+
+
    
 
 Route::apiResource('users', UsersController::class);
@@ -55,6 +66,11 @@ Route::apiResource('users', UsersController::class);
 
 
 });
+
+Route::apiResource('assets', AssetController::class);
+Route::apiResource('purchases', PurchaseController::class);
+Route::apiResource('delivery-notes', DeliveryNoteController::class);
+
 
 Route::get('/client-statistics', [DashboardStatisticsController::class, 'index']);
 
