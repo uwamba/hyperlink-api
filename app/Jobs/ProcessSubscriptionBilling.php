@@ -13,6 +13,10 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Mail\InvoiceNotificationMail;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\InvoiceOverdueMail;
+use App\Mail\InvoiceReminderMail;
 
 class ProcessSubscriptionBilling implements ShouldQueue
 {
@@ -24,6 +28,7 @@ class ProcessSubscriptionBilling implements ShouldQueue
         Log::info("Cron job started: Processing subscriptions.");
 
         try {
+
             $subscriptions = Subscription::where('status', 'active')->get();
             Log::info("Number of active subscriptions: " . $subscriptions->count());
 
@@ -46,6 +51,38 @@ class ProcessSubscriptionBilling implements ShouldQueue
                 }
             }
 
+
+
+            // check overdue invoices and sent notifications
+
+            $today = Carbon::today();
+            $fiveDaysLater = $today->copy()->addDays(5);
+
+            // 1. Invoices already marked as overdue
+            $overdues = Invoice::where('status', 'overdue')->get();
+
+            foreach ($overdues as $invoice) {
+                if ($invoice->client && $invoice->client->email) {
+                    Mail::to($invoice->client->email)->send(new InvoiceOverdueMail($invoice));
+                    Log::info("✅ Overdue invoice email sent to: {$invoice->client->email} (Invoice: {$invoice->invoice_no})");
+                }
+            }
+
+            // 2. Reminder for invoices due in 5 days
+            $reminders = Invoice::where('status', '!=', 'paid')
+                ->where('status', '!=', 'overdue')
+                ->whereDate('due_date', $fiveDaysLater)
+                ->get();
+
+            foreach ($reminders as $invoice) {
+                if ($invoice->client && $invoice->client->email) {
+                    Mail::to($invoice->client->email)->send(new InvoiceReminderMail($invoice));
+                    Log::info("📧 Reminder email sent to: {$invoice->client->email} (Invoice: {$invoice->invoice_no})");
+                }
+            }
+
+      
+
             CronLog::create(['job_name' => 'Subscription Billing', 'status' => 'success']);
             Log::info("Cron job finished.");
         } catch (\Exception $e) {
@@ -61,20 +98,46 @@ class ProcessSubscriptionBilling implements ShouldQueue
         }
     }
 
-    private function generateInvoice($subscriptionId)
+    private function generateInvoice_old($subscriptionId)
     {
         $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
         $amount = $subscription->plan->price;
         $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('YmdHis');
 
         Invoice::create([
-            'client_id'  => $subscription->client->id,
+            'client_id' => $subscription->client->id,
             'invoice_no' => $invoiceNo,
-            'amount'     => $amount,
-            'due_date'   => now()->addDays(30)->toDateString(),
-            'status'     => 'unpaid',
+            'amount' => $amount,
+            'due_date' => now()->addDays(30)->toDateString(),
+            'status' => 'unpaid',
         ]);
 
         Log::info("Invoice created for Subscription ID: {$subscriptionId}");
     }
+
+
+
+
+    private function generateInvoice($subscriptionId)
+    {
+        $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
+        $amount = $subscription->plan->price;
+        $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('YmdHis');
+
+        $invoice = Invoice::create([
+            'client_id' => $subscription->client->id,
+            'invoice_no' => $invoiceNo,
+            'amount' => $amount,
+            'due_date' => now()->addDays(30)->toDateString(),
+            'status' => 'unpaid',
+        ]);
+        Log::info("Invoice created for Subscription ID: {$subscriptionId}");
+
+        // Send email notification
+        if ($subscription->client && $subscription->client->email) {
+            Mail::to($subscription->client->email)->send(new InvoiceNotificationMail($invoice));
+            Log::info("Invoice email sent to: " . $subscription->client->email);
+        }
+    }
+
 }
