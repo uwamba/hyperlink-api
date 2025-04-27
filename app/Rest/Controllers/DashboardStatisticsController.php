@@ -22,7 +22,7 @@ class DashboardStatisticsController extends RestController
     /**
      * Get all dashboard statistics (Monthly/Annually).
      */
-    public function summary(Request $request)
+    public function index(Request $request)
     {
         // Get the period type (monthly or yearly)
         $period = $request->query('period', 'monthly'); // default to monthly
@@ -41,8 +41,10 @@ class DashboardStatisticsController extends RestController
 
         try {
             // 1. Total Sales for the Period
-            $totalSales = DeliveryNote::whereBetween('created_at', [$startDate, $endDate])
-                                      ->sum(DB::raw('total_amount'));
+            $totalSales = Payment::join('invoices', 'payments.invoice_id', '=', 'invoices.id')
+            ->whereBetween('payments.created_at', [$startDate, $endDate])
+            ->where('invoices.status', 'paid')
+            ->sum('payments.amount_paid');
 
             // 2. Total Purchases for the Period
             $totalPurchases = Purchase::whereBetween('created_at', [$startDate, $endDate])
@@ -75,35 +77,28 @@ class DashboardStatisticsController extends RestController
                                     ->groupBy('category')
                                     ->get();
 
-            // 11. Sales by Category for the Period (grouped by item category)
-            $salesByCategory = DeliveryNote::join('delivery_note_items', 'delivery_notes.id', '=', 'delivery_note_items.delivery_note_id')
-                                          ->join('items', 'delivery_note_items.item_id', '=', 'items.id')
-                                          ->whereBetween('delivery_notes.created_at', [$startDate, $endDate])
-                                          ->select('items.category', DB::raw('sum(delivery_note_items.quantity * delivery_note_items.unit_price) as total_sales'))
-                                          ->groupBy('items.category')
-                                          ->get();
-
+          
             // 12. Purchases by Supplier for the Period (grouped by supplier)
-            $purchasesBySupplier = Purchase::join('suppliers', 'purchases.supplier_id', '=', 'suppliers.id')
+            $purchasesBySupplier = Purchase::join('suppliers', 'purchases.supplier', '=', 'suppliers.id')
                                            ->whereBetween('purchases.created_at', [$startDate, $endDate])
                                            ->select('suppliers.name', DB::raw('sum(purchases.total_amount) as total_purchases'))
                                            ->groupBy('suppliers.name')
                                            ->get();
 
             // 13. Top 5 Products by Sales for the Period
-            $topProductsBySales = DeliveryNote::join('delivery_note_items', 'delivery_notes.id', '=', 'delivery_note_items.delivery_note_id')
-                                             ->join('items', 'delivery_note_items.item_id', '=', 'items.id')
-                                             ->whereBetween('delivery_notes.created_at', [$startDate, $endDate])
-                                             ->select('items.name', DB::raw('sum(delivery_note_items.quantity * delivery_note_items.unit_price) as total_sales'))
-                                             ->groupBy('items.name')
-                                             ->orderByDesc('total_sales')
-                                             ->take(5)
-                                             ->get();
+            //$topProductsBySales = DeliveryNote::join('delivery_note_items', 'delivery_notes.id', '=', 'delivery_note_items.delivery_note_id')
+                                            // ->join('items', 'delivery_note_items.item_id', '=', 'items.id')
+                                           //  ->whereBetween('delivery_notes.created_at', [$startDate, $endDate])
+                                           //  ->select('items.name', DB::raw('sum(delivery_note_items.quantity * delivery_note_items.unit_price) as total_sales'))
+                                           //  ->groupBy('items.name')
+                                           //  ->orderByDesc('total_sales')
+                                           //  ->take(5)
+                                           //  ->get();
 
             // 14. Expenses Breakdown by Type for the Period
-            $expensesByType = Expense::select('type', DB::raw('sum(amount) as total_expenses'))
+            $expensesByType = Expense::select('category', DB::raw('sum(amount) as total_expenses'))
                                      ->whereBetween('created_at', [$startDate, $endDate])
-                                     ->groupBy('type')
+                                     ->groupBy('category')
                                      ->get();
 
             // 15. Average Profit Margin (Total Sales / Total Purchases) for the Period
@@ -170,9 +165,7 @@ class DashboardStatisticsController extends RestController
                 'total_items'             => $totalItems,
                 'most_expensive_asset'    => $mostExpensiveAsset,
                 'assets_by_category'      => $assetsByCategory,
-                'sales_by_category'       => $salesByCategory,
                 'purchases_by_supplier'   => $purchasesBySupplier,
-                'top_products_by_sales'   => $topProductsBySales,
                 'expenses_by_type'        => $expensesByType,
                 'average_profit_margin'   => $averageProfitMargin,
             ];

@@ -20,6 +20,7 @@ use App\Rest\Controllers\ItemController;
 use App\Rest\Controllers\AssetController;
 use App\Rest\Controllers\PurchaseController;
 use App\Rest\Controllers\DeliveryNoteController;
+use App\Rest\Controllers\ReportController;
 
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
@@ -72,14 +73,22 @@ Route::apiResource('users', UsersController::class);
    
 
 
+
+
+
 });
+Route::post('/report/salesReport', [ReportController::class, 'salesReport']);
+Route::post('/report/purchasesReport', [ReportController::class, 'purchaseReport']);
+Route::post('/report/expensesReport', [ReportController::class, 'expenseReport']);
+
+
 
 Route::apiResource('assets', AssetController::class);
 Route::apiResource('purchases', PurchaseController::class);
 Route::apiResource('delivery-notes', DeliveryNoteController::class);
 
 
-Route::get('/client-statistics', [DashboardStatisticsController::class, 'index']);
+Route::get('/statistics', [DashboardStatisticsController::class, 'index']);
 
 // routes/api.php
 Route::resource('suppliers', SupplierController::class);
