@@ -102,7 +102,9 @@ class DashboardStatisticsController extends RestController
                                      ->get();
 
             // 15. Average Profit Margin (Total Sales / Total Purchases) for the Period
-            $averageProfitMargin = $totalPurchases ? ($totalSales - $totalPurchases) / $totalSales * 100 : 0;
+            //$averageProfitMargin = $totalPurchases ? ($totalSales - $totalPurchases) / $totalSales * 100 : 0;
+            $averageProfitMargin = ($totalSales > 0) ? (($totalSales - $totalPurchases) / $totalSales) * 100 : 0;
+
 
             // CLIENT, INVOICE, PAYMENT AND SUBSCRIPTION STATS
 
