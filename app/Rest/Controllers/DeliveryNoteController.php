@@ -3,6 +3,7 @@
 namespace App\Rest\Controllers;
 
 use App\Models\DeliveryNote;
+use App\Models\Item;
 use App\Models\DeliveryNoteItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -18,62 +19,70 @@ class DeliveryNoteController extends RestController
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {
-        // Validate the incoming request data
-        $validator = Validator::make($request->all(), [
-            'delivery_number' => 'required|unique:delivery_notes',
-            'recipient' => 'required|string|max:255',
-            'delivery_date' => 'required|date',
-            'delivery_note_items' => 'required|array',
-            'delivery_note_items.*.item_id' => 'required|exists:items,id',
-            'delivery_note_items.*.quantity' => 'required|integer|min:1',
+{
+    // Validate the incoming request data
+    $validator = Validator::make($request->all(), [
+        'delivery_number' => 'required|unique:delivery_notes',
+        'recipient' => 'required|string|max:255',
+        'delivery_date' => 'required|date',
+        'delivery_note_items' => 'required|array',
+        'delivery_note_items.*.item_id' => 'required|exists:items,id',
+        'delivery_note_items.*.quantity' => 'required|integer|min:1',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'message' => 'Validation error.',
+            'errors' => $validator->errors(),
+        ], 400);
+    }
+
+    // Start database transaction
+    \DB::beginTransaction();
+
+    try {
+        // Create the delivery note
+        $deliveryNote = DeliveryNote::create([
+            'delivery_number' => $request->delivery_number,
+            'recipient' => $request->recipient,
+            'delivery_date' => $request->delivery_date,
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation error.',
-                'errors' => $validator->errors(),
-            ], 400);
-        }
-
-        // Start database transaction
-        \DB::beginTransaction();
-
-        try {
-            // Create the delivery note
-            $deliveryNote = DeliveryNote::create([
-                'delivery_number' => $request->delivery_number,
-                'recipient' => $request->recipient,
-                'delivery_date' => $request->delivery_date,
+        // Create delivery note items and update item status
+        foreach ($request->delivery_note_items as $item) {
+            // Create each item record for the delivery note
+            DeliveryNoteItem::create([
+                'delivery_note_id' => $deliveryNote->id,
+                'item_id' => $item['item_id'],
+                'quantity' => $item['quantity'],
             ]);
 
-            // Create delivery note items
-            foreach ($request->delivery_note_items as $item) {
-                // Create each item record for the delivery note
-                DeliveryNoteItem::create([
-                    'delivery_note_id' => $deliveryNote->id,
-                    'item_id' => $item['item_id'],
-                    'quantity' => $item['quantity'],
-                ]);
-            }
-
-            // Commit the transaction
-            \DB::commit();
-
-            return response()->json([
-                'message' => 'Delivery note created successfully!',
-                'data' => new \App\Rest\Resources\DeliveryNoteResource($deliveryNote),
-            ], 201);
-        } catch (\Exception $e) {
-            // Rollback the transaction in case of error
-            \DB::rollBack();
-
-            return response()->json([
-                'message' => 'Something went wrong.',
-                'error' => $e->getMessage(),
-            ], 500);
+            // Update the corresponding item status and delivered_at
+            $itemModel = Item::findOrFail($item['item_id']);
+            $itemModel->update([
+                'status' => 'delivered',  // Assuming "delivered" is a valid status
+                'delivered_at' => now(),  // Set the current timestamp
+            ]);
         }
+
+        // Commit the transaction
+        \DB::commit();
+
+        return response()->json([
+            'message' => 'Delivery note created successfully!',
+            'data' => new \App\Rest\Resources\DeliveryNoteResource($deliveryNote),
+        ], 201);
+    } catch (\Exception $e) {
+        // Rollback the transaction in case of error
+        \DB::rollBack();
+
+        return response()->json([
+            'message' => 'Something went wrong.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
+
 
     /**
      * Display a listing of delivery notes.

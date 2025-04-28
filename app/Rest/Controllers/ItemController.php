@@ -19,6 +19,22 @@ class ItemController extends RestController
     {
         return ItemResource::collection(Item::all());
     }
+    public function inStock()
+{
+    // Fetch items where status is 'in_stock'
+    $items = Item::where('status', 'in_stock')->get();
+
+    // Return the filtered items as a collection of ItemResource
+    return ItemResource::collection($items);
+}
+public function deliveredStock()
+{
+    // Fetch items where status is 'in_stock'
+    $items = Item::where('status', 'delivered')->get();
+
+    // Return the filtered items as a collection of ItemResource
+    return ItemResource::collection($items);
+}
 
     /**
      * Store a newly created item in storage.
@@ -29,15 +45,35 @@ class ItemController extends RestController
             'name'           => 'required|string|max:255',
             'serial_number'  => 'required|string|max:255|unique:items,serial_number',
             'description'    => 'nullable|string|max:500',
-            'quantity'       => 'required|integer|min:0',
+            'quantity'       => 'required|integer|min:1',
             'price'          => 'required|numeric|min:0',
             'brand'          => 'required|string|max:255',
         ]);
-
-        $item = Item::create($data);
-
-        return new ItemResource($item);
+    
+        $quantity = $data['quantity'];
+        $baseSerial = $data['serial_number'];
+    
+        $items = [];
+    
+        for ($i = 1; $i <= $quantity; $i++) {
+            $items[] = [
+                'name'          => $data['name'],
+                'serial_number' => $baseSerial . '-' . $i, // make serial unique
+                'description'   => $data['description'],
+                'quantity'      => 1, // always 1
+                'price'         => $data['price'],
+                'brand'         => $data['brand'],
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ];
+        }
+    
+        // Insert all at once
+        Item::insert($items);
+    
+        return response()->json(['message' => $quantity . ' items added successfully.'], 201);
     }
+    
 
     /**
      * Display the specified item.

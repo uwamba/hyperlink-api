@@ -55,7 +55,11 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/failed-jobs', [JobController::class, 'showFailedJobs']);
     Route::resource('expenses', ExpenseController::class);
     Route::resource('products', ProductController::class);
+    Route::get('items/inStock', [ItemController::class, 'inStock'])->name('items.inStock');
+    Route::get('items/delivered', [ItemController::class, 'delivered'])->name('items.delivered');
+    Route::get('items/reserved', [ItemController::class, 'reserved'])->name('items.reserved');
     Route::resource('items', ItemController::class);
+   
     
 
     // Retry a failed job
@@ -80,6 +84,7 @@ Route::apiResource('users', UsersController::class);
 Route::post('/report/salesReport', [ReportController::class, 'salesReport']);
 Route::post('/report/purchasesReport', [ReportController::class, 'purchaseReport']);
 Route::post('/report/expensesReport', [ReportController::class, 'expenseReport']);
+Route::post('/report/stockReport', [ReportController::class, 'stockReport']);
 
 
 

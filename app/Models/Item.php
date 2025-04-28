@@ -16,5 +16,9 @@ class Item extends Model
         'quantity',
         'price',
         'brand',
+        'status',
+        'client_id',
+        'delivered_at',
+        
     ];   //
 }

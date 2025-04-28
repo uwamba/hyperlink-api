@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Rest\Controller as RestController;
 use Carbon\Carbon;
+use App\Models\Item;
 
 class ReportController extends RestController
 {
@@ -224,5 +225,107 @@ class ReportController extends RestController
             'data' => $expenses,
         ]);
     }
+     // Add this at the top if not already imported
+
+     public function stockReport(Request $request)
+{
+    $currentYearStart = Carbon::now()->startOfYear()->toDateString();
+    $currentYearEnd = Carbon::now()->endOfYear()->toDateString();
+
+    // Validate optional date filters
+    $validated = $request->validate([
+        'start_date' => 'nullable|date',
+        'end_date' => 'nullable|date|after_or_equal:start_date',
+        'granularity' => 'nullable|in:daily,monthly,annually',
+    ]);
+
+    $startDate = $validated['start_date'] ?? $currentYearStart;
+    $endDate = $validated['end_date'] ?? $currentYearEnd;
+    $granularity = $validated['granularity'] ?? 'monthly'; // Default to monthly
+
+    // Build the base query
+    $itemQuery = Item::query();
+
+    if ($startDate && $endDate) {
+        $itemQuery->whereBetween('created_at', [$startDate, $endDate]);
+    }
+
+    // Apply grouping based on granularity
+    if ($granularity === 'monthly') {
+        $itemQuery->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, status, price, quantity')
+                  ->groupByRaw('YEAR(created_at), MONTH(created_at), status, price, quantity');
+    } elseif ($granularity === 'annually') {
+        $itemQuery->selectRaw('YEAR(created_at) as year, status, price, quantity')
+                  ->groupByRaw('YEAR(created_at), status, price, quantity');
+    } else { // daily
+        $itemQuery->selectRaw('DATE(created_at) as date, status, price, quantity')
+                  ->groupByRaw('DATE(created_at), status, price, quantity');
+    }
+
+    // Fetch in-stock and delivered items separately
+    $inStockItems = (clone $itemQuery)->where('status', 'in_stock')->get();
+    $deliveredItems = (clone $itemQuery)->where('status', 'delivered')->get();
+
+    // Calculate total values
+    $inStockValue = $inStockItems->sum(function ($item) {
+        return $item->price * $item->quantity;
+    });
+
+    $deliveredStockValue = $deliveredItems->sum(function ($item) {
+        return $item->price * $item->quantity;
+    });
+
+    // Calculate total item counts
+    $inStockCount = $inStockItems->count();
+    $deliveredCount = $deliveredItems->count();
+
+    // Format the data according to granularity (this is your custom function)
+    $formattedData = $this->formatDataByGranularity($granularity, $inStockItems, $deliveredItems);
+
+    return response()->json([
+        'status' => 'success',
+        'data' => [
+            'in_stock_value' => $inStockValue,
+            'delivered_stock_value' => $deliveredStockValue,
+            'in_stock_count' => $inStockCount,
+            'delivered_count' => $deliveredCount,
+            'period_data' => $formattedData,
+        ],
+    ]);
+}
+     
+     // Helper function to format data by granularity
+     private function formatDataByGranularity($granularity, $inStockItems, $deliveredItems)
+     {
+         $formattedData = [];
+     
+         foreach ($inStockItems as $item) {
+             $period = $this->getPeriodFromGranularity($granularity, $item);
+             $formattedData[$period] = [
+                 'in_stock_value' => $item->price * $item->quantity,
+                 'delivered_stock_value' => $deliveredItems->sum(function ($delivered) use ($item) {
+                     return $delivered->price * $delivered->quantity;
+                 }),
+             ];
+         }
+     
+         return $formattedData;
+     }
+     
+     // Helper function to get period based on granularity
+     private function getPeriodFromGranularity($granularity, $item)
+     {
+         if ($granularity === 'monthly') {
+             return $item->year . '-' . $item->month;
+         } elseif ($granularity === 'annually') {
+             return $item->year;
+         } else {
+             return $item->date; // Date format: 'YYYY-MM-DD'
+         }
+     }
+
+     
+     
+
 
 }

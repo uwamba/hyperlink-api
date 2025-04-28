@@ -22,6 +22,15 @@ class ItemResource extends JsonResource
             'quantity'       => $this->quantity,
             'price'          => $this->price,
             'brand'          => $this->brand,
+            'status'         => $this->status,
+            'client_id'      => $this->client_id,
+            'delivered_at'   => $this->delivered_at?->toDateTimeString(),
+            'client'         => $this->whenLoaded('client', function () {
+                return [
+                    'id'   => $this->client->id,
+                    'name' => $this->client->name,
+                ];
+            }),
             'created_at'     => $this->created_at?->toDateTimeString(),
             'updated_at'     => $this->updated_at?->toDateTimeString(),
         ];
