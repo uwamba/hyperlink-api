@@ -62,16 +62,16 @@ class SupplierController extends RestController
         return new SupplierResource($supplier);
     }
     public function destroy($supplier)
-    {
-        $support = Supplier::find($supplier);
+{
+    $supplierModel = Supplier::find($supplier); // use a different name to avoid confusion
 
-        if (!$supplier) {
-            return response()->json(['message' => 'Supplier request not found'], 404);
-        }
-
-        $supplier->delete();
-
-
-        return response()->json(['message' => 'Supplier deleted successfully'], 200);
+    if (!$supplierModel) {
+        return response()->json(['message' => 'Supplier request not found'], 404);
     }
+
+    $supplierModel->delete();
+
+    return response()->json(['message' => 'Supplier deleted successfully'], 200);
+}
+
 }

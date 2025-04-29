@@ -13,8 +13,6 @@ return new class extends Migration
             $table->unsignedBigInteger('client_id')->nullable()->after('status');
             $table->timestamp('delivered_at')->nullable()->after('client_id');
 
-            // If you have a clients table and want foreign key
-            $table->uuid('client_id')->nullable()->after('status');
 
         });
     }
