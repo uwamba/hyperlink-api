@@ -84,7 +84,7 @@ class ProcessSubscriptionBilling implements ShouldQueue
       
 
             CronLog::create(['job_name' => 'Subscription Billing', 'status' => 'success']);
-            Log::info("Cron job finished.");
+            Log::info("Cron job finished without error.");
         } catch (\Exception $e) {
             CronLog::create([
                 'job_name' => 'Subscription Billing',
