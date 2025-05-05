@@ -29,26 +29,31 @@ class SubscriptionController extends RestController
      * @param \Illuminate\Http\Request $request
      */
     public function store(Request $request)
-    {
-        // Validate incoming request data
-        $validated = $request->validate([
-            'client_id' => 'required|uuid|exists:clients,id',
-            'plan_id' => 'required|uuid|exists:plans,id',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date',
-            'status' => 'required|string',
-        ]);
+{
+    // Validate incoming request data
+    $validated = $request->validate([
+        'client_id' => 'required|uuid|exists:clients,id',
+        'plan_id' => 'required|uuid|exists:plans,id',
+        'start_date' => 'required|date',
+        'end_date' => 'required|date',
+        'status' => 'required|string|in:active,inactive,cancelled',
+        'contract' => 'nullable|file|mimes:pdf,doc,docx|max:2048', // File validation
+    ]);
 
-        // Check if billing_date is provided; if not, set it to the last day of the current month
-        $validated['billing_date'] = $request->billing_date ?? Carbon::now()->endOfMonth()->toDateString();
-
-        // Create the subscription using validated data
-        $subscription = Subscription::create($validated);
-
-        // Return the created subscription as a resource
-        return new SubscriptionResource($subscription);
+    // Handle file upload if contract file is present
+    if ($request->hasFile('contract')) {
+        $validated['contract'] = $request->file('contract')->store('contracts', 'public');
     }
 
+    // Set billing_date to end of current month if not provided
+    $validated['billing_date'] = $request->billing_date ?? Carbon::now()->endOfMonth()->toDateString();
+
+    // Create the subscription
+    $subscription = Subscription::create($validated);
+
+    // Return the created subscription as a resource
+    return new SubscriptionResource($subscription);
+}
     /**
      * Display the specified subscription.
      *
@@ -59,4 +64,23 @@ class SubscriptionController extends RestController
         // Return the subscription as a resource
         return new SubscriptionResource($subscription);
     }
+
+    public function download($id)
+{
+    $subscription = Subscription::findOrFail($id);
+
+    if (!$subscription->contract) {
+        return response()->json(['message' => 'No contract found for this subscription'], 404);
+    }
+
+    $filePath = storage_path('app/public/' . $subscription->contract);
+
+    if (!file_exists($filePath)) {
+        return response()->json(['message' => 'Contract file not found'], 404);
+    }
+
+    return response()->download($filePath);
+}
+
+
 }

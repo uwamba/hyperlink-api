@@ -9,6 +9,8 @@ use Illuminate\Http\Response;
 use App\Rest\Controller as RestController;
 use Illuminate\Validation\ValidationException;
 use Exception;
+use App\Models\FloatTransaction;
+use Illuminate\Support\Facades\Auth;
 
 class ExpenseController extends RestController
 {
@@ -23,6 +25,8 @@ class ExpenseController extends RestController
     /**
      * Store a newly created expense in storage.
      */
+
+    
     public function store(Request $request)
     {
         // Validate incoming request data
@@ -32,13 +36,32 @@ class ExpenseController extends RestController
             'expense_date' => 'required|date',
             'category'     => 'nullable|string|max:255',
         ]);
-
+    
+        // Attach the currently authenticated user (or pass via request if needed)
+        $data['user_id'] = Auth::id(); // Or $request->input('user_id') if not using Auth
+    
         // Create a new expense
         $expense = Expense::create($data);
-
+    
+        // Get current balance before transaction
+        $currentBalance = FloatTransaction::where('user_id', $data['user_id'])
+            ->orderByDesc('id')
+            ->value('balance_after') ?? 0;
+    
+        // Subtract the expense from the float
+        FloatTransaction::create([
+            'user_id'        => $data['user_id'],
+            'amount'         => $data['amount'],
+            'action'         => 'expensed',
+            'balance_before' => $currentBalance,
+            'balance_after'  => $currentBalance - $data['amount'],
+            'description'    => 'Expense: ' . $data['description'],
+        ]);
+    
         // Return the created expense as a resource
         return new ExpenseResource($expense);
     }
+    
 
     /**
      * Display the specified expense.

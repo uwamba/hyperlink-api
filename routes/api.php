@@ -11,7 +11,7 @@ use App\Rest\Controllers\InvoiceController;
 use App\Rest\Controllers\AuthController;
 use App\Rest\Controllers\JobController;
 use App\Rest\Controllers\DashboardStatisticsController;
-use App\Rest\Controllers\SupportController; 
+use App\Rest\Controllers\SupportController;
 use App\Rest\Controllers\UsersController;
 use App\Rest\Controllers\ExpenseController;
 use App\Rest\Controllers\SupplierController;
@@ -21,6 +21,8 @@ use App\Rest\Controllers\AssetController;
 use App\Rest\Controllers\PurchaseController;
 use App\Rest\Controllers\DeliveryNoteController;
 use App\Rest\Controllers\ReportController;
+use App\Rest\Controllers\PettyCashFloatRequestController;
+use App\Rest\Controllers\FloatTransactionController;
 
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
@@ -35,10 +37,33 @@ Route::post('password/reset', [ResetPasswordController::class, 'reset']);
 
 
 Route::middleware('auth:api')->group(function () {
+
+    Route::middleware('role:super_user')->group(function () {
+
+    });
+
+    // Admin or Manager
+    Route::middleware('role:super_user,manager')->group(function () {
+
+    });
+    Route::middleware('role:super_user,sales')->group(function () {
+
+    });
+    Route::middleware('role:super_user,manager,sales')->group(function () {
+
+    });
+    Route::middleware('role:super_user,technician')->group(function () {
+
+    });
+
+
+
+
     Route::get('user', [AuthController::class, 'user']);
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::resource('plans', PlanController::class);
+    Route::get('/download-contract/{id}', [SubscriptionController::class, 'download']);
     Route::resource('subscriptions', SubscriptionController::class);
     Route::resource('billings', BillingController::class);
     Route::resource('payments', PaymentController::class);
@@ -59,28 +84,44 @@ Route::middleware('auth:api')->group(function () {
     Route::get('items/delivered', [ItemController::class, 'delivered'])->name('items.delivered');
     Route::get('items/reserved', [ItemController::class, 'reserved'])->name('items.reserved');
     Route::resource('items', ItemController::class);
-   
-    
+
+
 
     // Retry a failed job
     Route::post('/retry-failed-job/{jobId}', [JobController::class, 'retryFailedJob']);
 
- 
 
+
+
+
+
+
+
+    Route::apiResource('users', UsersController::class);
+
+    
+    Route::get('petty-cash-floats/', [PettyCashFloatRequestController::class, 'index']);
+    Route::post('petty-cash-floats/', [PettyCashFloatRequestController::class, 'store']);
+    Route::get('petty-cash-floats/{pettyCashFloatRequest}', [PettyCashFloatRequestController::class, 'show']);
+    Route::post('petty-cash-floats/{pettyCashFloatRequest}/approve', [PettyCashFloatRequestController::class, 'approve']);
+    Route::post('petty-cash-floats/{pettyCashFloatRequest}/reject', [PettyCashFloatRequestController::class, 'reject']);
+
+    Route::put('/petty-cash-floats/{id}/status', [PettyCashFloatRequestController::class, 'changeStatus']);
+
+
+
+Route::apiResource('float-transactions', FloatTransactionController::class);
 
 
 
    
-
-Route::apiResource('users', UsersController::class);
-
-   
-
-
-
 
 
 });
+
+
+    
+
 Route::post('/report/salesReport', [ReportController::class, 'salesReport']);
 Route::post('/report/purchasesReport', [ReportController::class, 'purchaseReport']);
 Route::post('/report/expensesReport', [ReportController::class, 'expenseReport']);

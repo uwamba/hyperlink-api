@@ -16,6 +16,7 @@ class SubscriptionResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'contract' => $this->contract,
             'client' => [
                 'id' => $this->client_id,
                 'name' => $this->client->name,
