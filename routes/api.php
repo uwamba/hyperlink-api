@@ -81,7 +81,7 @@ Route::middleware('auth:api')->group(function () {
     Route::resource('expenses', ExpenseController::class);
     Route::resource('products', ProductController::class);
     Route::get('items/inStock', [ItemController::class, 'inStock'])->name('items.inStock');
-    Route::get('items/delivered', [ItemController::class, 'delivered'])->name('items.delivered');
+    Route::get('items/outStock', [ItemController::class, 'outStock'])->name('items.outStock');
     Route::get('items/reserved', [ItemController::class, 'reserved'])->name('items.reserved');
     Route::resource('items', ItemController::class);
 
@@ -102,6 +102,9 @@ Route::middleware('auth:api')->group(function () {
     
     Route::get('petty-cash-floats/', [PettyCashFloatRequestController::class, 'index']);
     Route::post('petty-cash-floats/', [PettyCashFloatRequestController::class, 'store']);
+    Route::delete('petty-cash-floats/{id}', [PettyCashFloatRequestController::class, 'destroy']);
+    Route::put('petty-cash-floats/{id}', [PettyCashFloatRequestController::class, 'update']);
+
     Route::get('petty-cash-floats/{pettyCashFloatRequest}', [PettyCashFloatRequestController::class, 'show']);
     Route::post('petty-cash-floats/{pettyCashFloatRequest}/approve', [PettyCashFloatRequestController::class, 'approve']);
     Route::post('petty-cash-floats/{pettyCashFloatRequest}/reject', [PettyCashFloatRequestController::class, 'reject']);

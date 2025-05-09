@@ -17,6 +17,7 @@ use App\Mail\InvoiceNotificationMail;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\InvoiceOverdueMail;
 use App\Mail\InvoiceReminderMail;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class ProcessSubscriptionBilling implements ShouldQueue
 {
@@ -51,9 +52,7 @@ class ProcessSubscriptionBilling implements ShouldQueue
                 }
             }
 
-
-
-            // check overdue invoices and sent notifications
+            // Check overdue invoices and send notifications
 
             $today = Carbon::today();
             $fiveDaysLater = $today->copy()->addDays(5);
@@ -81,8 +80,6 @@ class ProcessSubscriptionBilling implements ShouldQueue
                 }
             }
 
-      
-
             CronLog::create(['job_name' => 'Subscription Billing', 'status' => 'success']);
             Log::info("Cron job finished without error.");
         } catch (\Exception $e) {
@@ -98,32 +95,13 @@ class ProcessSubscriptionBilling implements ShouldQueue
         }
     }
 
-    private function generateInvoice_old($subscriptionId)
-    {
-        $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
-        $amount = $subscription->plan->price;
-        $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('YmdHis');
-
-        Invoice::create([
-            'client_id' => $subscription->client->id,
-            'invoice_no' => $invoiceNo,
-            'amount' => $amount,
-            'due_date' => now()->addDays(30)->toDateString(),
-            'status' => 'unpaid',
-        ]);
-
-        Log::info("Invoice created for Subscription ID: {$subscriptionId}");
-    }
-
-
-
-
     private function generateInvoice($subscriptionId)
     {
         $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
         $amount = $subscription->plan->price;
         $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('YmdHis');
 
+        // Create the invoice record in the database
         $invoice = Invoice::create([
             'client_id' => $subscription->client->id,
             'invoice_no' => $invoiceNo,
@@ -131,13 +109,28 @@ class ProcessSubscriptionBilling implements ShouldQueue
             'due_date' => now()->addDays(30)->toDateString(),
             'status' => 'unpaid',
         ]);
+        
         Log::info("Invoice created for Subscription ID: {$subscriptionId}");
 
-        // Send email notification
+        // Generate PDF for the invoice
+        $invoiceData = [
+            'invoice' => $invoice,
+            'client' => $subscription->client,
+            'plan' => $subscription->plan,
+            'amount' => $amount,
+            'start_date' => $subscription->start_date,
+            'end_date' => $subscription->end_date,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+        ];
+
+        // Generate the PDF using the invoice data
+        $pdf = PDF::loadView('invoice', $invoiceData);
+
+        // Send email notification with the PDF attachment
         if ($subscription->client && $subscription->client->email) {
-            Mail::to($subscription->client->email)->send(new InvoiceNotificationMail($invoice));
-            Log::info("Invoice email sent to: " . $subscription->client->email);
+            Mail::to($subscription->client->email)->send(new InvoiceNotificationMail($invoice, $pdf));
+            Log::info("Invoice email with attachment sent to: " . $subscription->client->email);
         }
     }
-
 }

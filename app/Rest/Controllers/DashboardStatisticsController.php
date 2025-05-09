@@ -20,170 +20,108 @@ use Carbon\Carbon;
 class DashboardStatisticsController extends RestController
 {
     /**
-     * Get all dashboard statistics (Monthly/Annually).
+     * Get all dashboard statistics (Monthly/Annually) with dynamic date ranges.
      */
     public function index(Request $request)
-    {
-        // Get the period type (monthly or yearly)
-        $period = $request->query('period', 'monthly'); // default to monthly
-        $year = $request->query('year', Carbon::now()->year); // default to current year
-        $month = $request->query('month', Carbon::now()->month); // default to current month
+{
+    // Default start and end dates for testing
+    $defaultStartDate = Carbon::create(2025, 1, 1); // January 1, 2025
+    $defaultEndDate = Carbon::create(2025, 5, 1);   // May 1, 2025
 
-        // Set the start and end dates for the period
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+    // Validate and get the custom date ranges from the request (if provided)
+    $startDate = $request->input('start_date', $defaultStartDate);
+    $endDate = $request->input('end_date', $defaultEndDate);
 
-        // For annual data, we change the date range accordingly
-        if ($period === 'annual') {
-            $startDate = Carbon::create($year, 1, 1)->startOfYear();
-            $endDate = Carbon::create($year, 12, 31)->endOfYear();
-        }
+    // If custom date ranges are provided, parse them
+    if ($startDate && $endDate) {
+        $startDate = Carbon::parse($startDate);
+        $endDate = Carbon::parse($endDate);
+    }
 
-        try {
-            // 1. Total Sales for the Period
-            $totalSales = Payment::join('invoices', 'payments.invoice_id', '=', 'invoices.id')
+    // Log the date range to check if the default values are used
+    \Log::info('Using Date Range - Start Date: ' . $startDate->toDateString() . ', End Date: ' . $endDate->toDateString());
+
+    // Helper function to calculate metrics for a date range
+    $calculateMetrics = function ($startDate, $endDate) {
+        // Sales, Purchases, Expenses, Profit Calculation
+        $totalSales = Payment::join('invoices', 'payments.invoice_id', '=', 'invoices.id')
             ->whereBetween('payments.created_at', [$startDate, $endDate])
             ->where('invoices.status', 'paid')
             ->sum('payments.amount_paid');
 
-            // 2. Total Purchases for the Period
-            $totalPurchases = Purchase::whereBetween('created_at', [$startDate, $endDate])
-                                      ->sum(DB::raw('total_amount'));
+        $totalPurchases = Purchase::whereBetween('created_at', [$startDate, $endDate])
+            ->sum(DB::raw('total_amount'));
 
-            // 3. Total Expenses for the Period
-            $totalExpenses = Expense::whereBetween('created_at', [$startDate, $endDate])
-                                    ->sum(DB::raw('amount'));
+        $totalExpenses = Expense::whereBetween('created_at', [$startDate, $endDate])
+            ->sum(DB::raw('amount'));
 
-            // 4. Total Assets Value (this won't change based on period)
-            $totalAssetsValue = Asset::sum(DB::raw('value'));
+        $profit = $totalSales - $totalPurchases - $totalExpenses;
 
-            // 5. Profit = Sales - Purchases - Expenses
-            $profit = $totalSales - $totalPurchases - $totalExpenses;
+        $averageProfitMargin = ($totalSales > 0)
+            ? (($totalSales - $totalPurchases) / $totalSales) * 100
+            : 0;
 
-            // 6. Total Customers Count (overall, doesn't depend on period)
-            $totalCustomers = Client::count();
+        // Expense data by type
+        $expensesByType = Expense::select('category', DB::raw('sum(amount) as total_expenses'))
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy('category')
+            ->get();
 
-            // 7. Total Suppliers Count (overall, doesn't depend on period)
-            $totalSuppliers = Supplier::count();
+        // Purchases data by supplier
+        $purchasesBySupplier = Purchase::join('suppliers', 'purchases.supplier', '=', 'suppliers.id')
+            ->whereBetween('purchases.created_at', [$startDate, $endDate])
+            ->select('suppliers.name', DB::raw('sum(purchases.total_amount) as total_purchases'))
+            ->groupBy('suppliers.name')
+            ->get();
 
-            // 8. Total Items Count (overall, doesn't depend on period)
-            $totalItems = Item::count();
+        return [
+            'total_sales' => $totalSales,
+            'total_purchases' => $totalPurchases,
+            'total_expenses' => $totalExpenses,
+            'profit' => $profit,
+            'average_profit_margin' => $averageProfitMargin,
+            'expenses_by_type' => $expensesByType,
+            'purchases_by_supplier' => $purchasesBySupplier,
+        ];
+    };
 
-            // 9. Most Expensive Asset (this is also overall data)
-            $mostExpensiveAsset = Asset::orderBy('value', 'desc')->first();
+    // Get data for each period (using custom date ranges or defaults)
+    $weeklyMetrics = $calculateMetrics($startDate->copy()->startOfWeek(Carbon::MONDAY), $endDate->copy()->endOfWeek(Carbon::SUNDAY));
+    $monthlyMetrics = $calculateMetrics($startDate->copy()->startOfMonth(), $endDate->copy()->endOfMonth());
+    $annualMetrics = $calculateMetrics($startDate->copy()->startOfYear(), $endDate->copy()->endOfYear());
 
-            // 10. Number of Assets in Each Category (grouped by category)
-            $assetsByCategory = Asset::select('category', DB::raw('count(*) as count'))
-                                    ->groupBy('category')
-                                    ->get();
+    // General (period-independent) data
+    $generalData = [
+        'total_assets_value' => Asset::sum(DB::raw('value')),
+        'total_clients' => Client::count(),
+        // Get active clients by checking if they have an active subscription
+        'active_clients' => Client::whereHas('activeSubscription', function ($query) {
+            $query->where('status', 'active');
+        })->count(),
+        // Inactive Clients
+        'inactive_clients' => Client::whereDoesntHave('activeSubscription', function ($query) {
+            $query->where('status', 'active');
+        })->count(),
+        'total_suppliers' => Supplier::count(),
+        'total_items' => Item::count(),
+        'most_expensive_asset' => Asset::orderBy('value', 'desc')->first(),
+        'assets_by_category' => Asset::select('category', DB::raw('count(*) as count'))
+            ->groupBy('category')
+            ->get(),
+        'total_subscriptions' => Subscription::count(),
+        'active_subscriptions' => Subscription::where('status', 'active')->count(),
+        'expired_subscriptions' => Subscription::where('status', 'expired')->count(),
+        'total_invoices' => Invoice::count(),
+        'unpaid_invoices' => Invoice::where('status', 'unpaid')->count(),
+        'total_payments_received' => Payment::sum('amount_paid'),
+    ];
 
-          
-            // 12. Purchases by Supplier for the Period (grouped by supplier)
-            $purchasesBySupplier = Purchase::join('suppliers', 'purchases.supplier', '=', 'suppliers.id')
-                                           ->whereBetween('purchases.created_at', [$startDate, $endDate])
-                                           ->select('suppliers.name', DB::raw('sum(purchases.total_amount) as total_purchases'))
-                                           ->groupBy('suppliers.name')
-                                           ->get();
-
-            // 13. Top 5 Products by Sales for the Period
-            //$topProductsBySales = DeliveryNote::join('delivery_note_items', 'delivery_notes.id', '=', 'delivery_note_items.delivery_note_id')
-                                            // ->join('items', 'delivery_note_items.item_id', '=', 'items.id')
-                                           //  ->whereBetween('delivery_notes.created_at', [$startDate, $endDate])
-                                           //  ->select('items.name', DB::raw('sum(delivery_note_items.quantity * delivery_note_items.unit_price) as total_sales'))
-                                           //  ->groupBy('items.name')
-                                           //  ->orderByDesc('total_sales')
-                                           //  ->take(5)
-                                           //  ->get();
-
-            // 14. Expenses Breakdown by Type for the Period
-            $expensesByType = Expense::select('category', DB::raw('sum(amount) as total_expenses'))
-                                     ->whereBetween('created_at', [$startDate, $endDate])
-                                     ->groupBy('category')
-                                     ->get();
-
-            // 15. Average Profit Margin (Total Sales / Total Purchases) for the Period
-            //$averageProfitMargin = $totalPurchases ? ($totalSales - $totalPurchases) / $totalSales * 100 : 0;
-            $averageProfitMargin = ($totalSales > 0) ? (($totalSales - $totalPurchases) / $totalSales) * 100 : 0;
-
-
-            // CLIENT, INVOICE, PAYMENT AND SUBSCRIPTION STATS
-
-            // 1. Clients
-            $totalClients = Client::count();
-            $activeClients = Client::whereHas('activeSubscription')->count();
-            $inactiveClients = Client::whereDoesntHave('activeSubscription')->count();
-
-            // 2. Invoices
-            $totalInvoices = Invoice::count();
-            $unpaidInvoices = Invoice::where('status', 'unpaid')->count();
-
-            // 3. Payments
-            $totalPaymentsReceived = Payment::sum('amount_paid');
-
-            // Stats by Date Periods
-            $dailyInvoices = Invoice::whereDate('created_at', $startDate)->count();
-            $dailyPayments = Payment::whereDate('created_at', $startDate)->sum('amount_paid');
-
-            $weeklyInvoices = Invoice::whereBetween('created_at', [$startDate->startOfWeek(), $endDate->endOfWeek()])->count();
-            $weeklyPayments = Payment::whereBetween('created_at', [$startDate->startOfWeek(), $endDate->endOfWeek()])->sum('amount_paid');
-
-            $monthlyInvoices = Invoice::whereBetween('created_at', [$startDate, $endDate])->count();
-            $monthlyPayments = Payment::whereBetween('created_at', [$startDate, $endDate])->sum('amount_paid');
-
-            $annualInvoices = Invoice::whereBetween('created_at', [$startDate->startOfYear(), $endDate->endOfYear()])->count();
-            $annualPayments = Payment::whereBetween('created_at', [$startDate->startOfYear(), $endDate->endOfYear()])->sum('amount_paid');
-
-            // Subscription Stats
-            $totalSubscriptions = Subscription::count();
-            $activeSubscriptions = Subscription::where('status', 'active')->count();
-            $expiredSubscriptions = Subscription::where('status', 'expired')->count();
-
-            // Prepare the response data
-            $data = [
-                'total_sales'             => $totalSales,
-                'total_purchases'         => $totalPurchases,
-                'total_expenses'          => $totalExpenses,
-                'total_assets_value'      => $totalAssetsValue,
-                'profit'                  => $profit,
-                'total_clients'           => $totalClients,
-                'active_clients'          => $activeClients,
-                'inactive_clients'        => $inactiveClients,
-                'total_invoices'          => $totalInvoices,
-                'unpaid_invoices'         => $unpaidInvoices,
-                'total_payments_received' => $totalPaymentsReceived,
-                'daily_invoices'          => $dailyInvoices,
-                'daily_payments'          => $dailyPayments,
-                'weekly_invoices'         => $weeklyInvoices,
-                'weekly_payments'         => $weeklyPayments,
-                'monthly_invoices'        => $monthlyInvoices,
-                'monthly_payments'        => $monthlyPayments,
-                'annual_invoices'         => $annualInvoices,
-                'annual_payments'         => $annualPayments,
-                'total_subscriptions'     => $totalSubscriptions,
-                'active_subscriptions'    => $activeSubscriptions,
-                'expired_subscriptions'   => $expiredSubscriptions,
-                'total_customers'         => $totalCustomers,
-                'total_suppliers'         => $totalSuppliers,
-                'total_items'             => $totalItems,
-                'most_expensive_asset'    => $mostExpensiveAsset,
-                'assets_by_category'      => $assetsByCategory,
-                'purchases_by_supplier'   => $purchasesBySupplier,
-                'expenses_by_type'        => $expensesByType,
-                'average_profit_margin'   => $averageProfitMargin,
-            ];
-
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch dashboard statistics.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    return response()->json([
+        'weekly' => $weeklyMetrics,
+        'monthly' => $monthlyMetrics,
+        'annual' => $annualMetrics,
+        'general' => $generalData,
+    ]);
 }
-// end of file
+
+}

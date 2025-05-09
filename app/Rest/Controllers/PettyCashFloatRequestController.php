@@ -144,4 +144,11 @@ class PettyCashFloatRequestController extends RestController
 
         return new PettyCashFloatRequestResource($pettyCashFloatRequest);
     }
+    public function destroy($id)
+     {
+         $floats = PettyCashFloatRequest::findOrFail($id);
+         $floats->delete();
+ 
+         return response()->json(['message' => 'Float deleted successfully'], 200);
+     }
 }

@@ -20,21 +20,21 @@ class ItemController extends RestController
         return ItemResource::collection(Item::all());
     }
     public function inStock()
-{
-    // Fetch items where status is 'in_stock'
-    $items = Item::where('status', 'in_stock')->get();
+    {
+        // Fetch items where status is 'in_stock'
+        $items = Item::where('status', 'in_stock')->get();
 
-    // Return the filtered items as a collection of ItemResource
-    return ItemResource::collection($items);
-}
-public function deliveredStock()
-{
-    // Fetch items where status is 'in_stock'
-    $items = Item::where('status', 'delivered')->get();
+        // Return the filtered items as a collection of ItemResource
+        return ItemResource::collection($items);
+    }
+    public function outStock()
+    {
+        // Fetch items where status is 'in_stock'
+        $items = Item::where('status', 'delivered')->get();
 
-    // Return the filtered items as a collection of ItemResource
-    return ItemResource::collection($items);
-}
+        // Return the filtered items as a collection of ItemResource
+        return ItemResource::collection($items);
+    }
 
     /**
      * Store a newly created item in storage.
@@ -42,38 +42,38 @@ public function deliveredStock()
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'           => 'required|string|max:255',
-            'serial_number'  => 'required|string|max:255|unique:items,serial_number',
-            'description'    => 'nullable|string|max:500',
-            'quantity'       => 'required|integer|min:1',
-            'price'          => 'required|numeric|min:0',
-            'brand'          => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'serial_number' => 'required|string|max:255|unique:items,serial_number',
+            'description' => 'nullable|string|max:500',
+            'quantity' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
+            'brand' => 'required|string|max:255',
         ]);
-    
+
         $quantity = $data['quantity'];
         $baseSerial = $data['serial_number'];
-    
+
         $items = [];
-    
+
         for ($i = 1; $i <= $quantity; $i++) {
             $items[] = [
-                'name'          => $data['name'],
+                'name' => $data['name'],
                 'serial_number' => $baseSerial . '-' . $i, // make serial unique
-                'description'   => $data['description'],
-                'quantity'      => 1, // always 1
-                'price'         => $data['price'],
-                'brand'         => $data['brand'],
-                'created_at'    => now(),
-                'updated_at'    => now(),
+                'description' => $data['description'],
+                'quantity' => 1, // always 1
+                'price' => $data['price'],
+                'brand' => $data['brand'],
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
         }
-    
+
         // Insert all at once
         Item::insert($items);
-    
+
         return response()->json(['message' => $quantity . ' items added successfully.'], 201);
     }
-    
+
 
     /**
      * Display the specified item.
@@ -91,12 +91,12 @@ public function deliveredStock()
     public function update(Request $request, Item $item)
     {
         $validated = $request->validate([
-            'name'           => 'required|string|max:255',
-            'serial_number'  => 'required|string|max:255|unique:items,serial_number,' . $item->id,
-            'description'    => 'nullable|string|max:500',
-            'quantity'       => 'required|integer|min:0',
-            'price'          => 'required|numeric|min:0',
-            'brand'          => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'serial_number' => 'required|string|max:255|unique:items,serial_number,' . $item->id,
+            'description' => 'nullable|string|max:500',
+            'quantity' => 'required|integer|min:0',
+            'price' => 'required|numeric|min:0',
+            'brand' => 'required|string|max:255',
         ]);
 
         $item->update($validated);
@@ -107,16 +107,12 @@ public function deliveredStock()
     /**
      * Remove the specified item from storage.
      */
+   
     public function destroy($id)
-    {
-        $item = Item::find($id);
-
-        if (!$item) {
-            return response()->json(['message' => 'Item not found'], 404);
-        }
-
-        $item->delete();
-
-        return response()->json(['message' => 'Item deleted successfully'], 200);
-    }
+     {
+         $item = Item::findOrFail($id);
+         $item->delete();
+ 
+         return response()->json(['message' => '[Item deleted successfully'], 200);
+     }
 }

@@ -84,5 +84,11 @@ class PlanController extends RestController
      * @param  \App\Models\Plan  $plan
      * @return \Illuminate\Http\Response
      */
-    
+    public function destroy($id)
+     {
+         $invoice = Plan::findOrFail($id);
+         $invoice->delete();
+ 
+         return response()->json(['message' => '[Plan deleted successfully'], 200);
+     }
 }

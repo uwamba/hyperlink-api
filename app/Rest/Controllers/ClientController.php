@@ -73,9 +73,10 @@ class ClientController extends RestController
     {
         // Validate the request data
         $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:clients,email,' . $client->id,
-            'phone' => 'sometimes|required|string|max:15',
+           'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:clients,email',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
             // Add other necessary fields and validation rules
         ]);
 
@@ -83,11 +84,20 @@ class ClientController extends RestController
         $client->update($validated);
 
         // Return the updated client, transformed by the ClientResource
-        //return new ClientResource($client);
+        return new ClientResource($client);
     }
 
     /**
      * Remove the specified resource from storage.
      */
+
+     public function destroy($id)
+     {
+         $invoice = Client::findOrFail($id);
+         $invoice->delete();
+ 
+         return response()->json(['message' => 'Client deleted successfully'], 200);
+     }
+ 
     
 }

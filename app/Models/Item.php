@@ -20,5 +20,10 @@ class Item extends Model
         'client_id',
         'delivered_at',
         
-    ];   //
+    ];  
+    protected $casts = [
+        'delivered_at' => 'datetime',
+        'created_at'   => 'datetime',
+        'updated_at'   => 'datetime',
+    ]; //
 }
