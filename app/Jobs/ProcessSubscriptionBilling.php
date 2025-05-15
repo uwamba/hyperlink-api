@@ -105,7 +105,9 @@ class ProcessSubscriptionBilling implements ShouldQueue
         $invoice = Invoice::create([
             'client_id' => $subscription->client->id,
             'invoice_no' => $invoiceNo,
+            'invoice_data_type' => "subscription",
             'amount' => $amount,
+            'invoice_data_id' => $subscription->id,
             'due_date' => now()->addDays(30)->toDateString(),
             'status' => 'unpaid',
         ]);

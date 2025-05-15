@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 use App\Rest\Controller as RestController;
 use App\Models\Subscription;
 use Barryvdh\DomPDF\Facade\Pdf as pdf;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+
+use App\Models\DeliveryNote;
 
 
 class InvoiceController extends RestController
@@ -19,23 +23,32 @@ class InvoiceController extends RestController
         return InvoiceResource::collection($invoices);
     }
     public function unpaid()
-    {
-        // Fetch only invoices with a status of 'unpaid'
-        $invoices = Invoice::where('status', 'unpaid')->get();
-        return InvoiceResource::collection($invoices);
-    }
-    public function paid()
-    {
-        // Fetch only invoices with a status of 'unpaid'
-        $invoices = Invoice::where('status', 'paid')->get();
-        return InvoiceResource::collection($invoices);
-    }
-    public function overdue()
-    {
-        // Fetch only invoices with a status of 'unpaid'
-        $invoices = Invoice::where('status', 'overdue')->get();
-        return InvoiceResource::collection($invoices);
-    }
+{
+    $invoices = Invoice::where('status', 'unpaid')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return InvoiceResource::collection($invoices);
+}
+
+public function paid()
+{
+    $invoices = Invoice::where('status', 'paid')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return InvoiceResource::collection($invoices);
+}
+
+public function overdue()
+{
+    $invoices = Invoice::where('status', 'overdue')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return InvoiceResource::collection($invoices);
+}
+
     // Show a specific invoice
     public function show($id)
     {
@@ -86,91 +99,61 @@ class InvoiceController extends RestController
     }
 
 
-    public function generateInvoice($subscriptionId)
-{
-    // Fetch the subscription with related client and plan
-    $subscription = Subscription::with(['client', 'plan'])->findOrFail($subscriptionId);
-
-    // Check if an invoice was already generated for this subscription in the current month
-    $existingInvoice = Invoice::where('client_id', $subscription->client->id)
-        ->whereYear('created_at', now()->year)
-        ->whereMonth('created_at', now()->month)
-        ->first();
-
-    if ($existingInvoice) {
-        // If an invoice already exists for the current month, return the existing one
-        $invoiceData = [
-            'invoice' => $existingInvoice,
-            'client' => $subscription->client,
-            'plan' => $subscription->plan,
-            'amount' => $existingInvoice->amount,
-            'start_date' => $subscription->start_date,
-            'end_date' => $subscription->end_date,
-            'issue_date' => $existingInvoice->created_at->toDateString(),
-            'due_date' => $existingInvoice->due_date,
-        ];
-
-        $pdf = PDF::loadView('invoice', $invoiceData);
-
-        return $pdf->download('invoice_' . $existingInvoice->invoice_no . '.pdf');
-    }
-
-    // Calculate amount based on the subscription's plan
-    $amount = $subscription->plan->price;
-
-    // Generate a unique invoice number
-    $invoiceNo = 'INV-' . $subscription->id . '-' . now()->format('Ym');
-
-    // Create a new invoice record
-    $invoice = Invoice::create([
-        'client_id' => $subscription->client->id,
-        'invoice_no' => $invoiceNo,
-        'amount' => $amount,
-        'due_date' => now()->addDays(30)->toDateString(),
-        'status' => 'unpaid',
-    ]);
-
-    // Prepare invoice data for the PDF
-    $invoiceData = [
-        'invoice' => $invoice,
-        'client' => $subscription->client,
-        'plan' => $subscription->plan,
-        'amount' => $amount,
-        'start_date' => $subscription->start_date,
-        'end_date' => $subscription->end_date,
-        'issue_date' => now()->toDateString(),
-        'due_date' => now()->addDays(30)->toDateString(),
-    ];
-
-    $pdf = PDF::loadView('invoice', $invoiceData);
-
-    return $pdf->download('invoice_' . $invoice->invoice_no . '.pdf');
-}
 
 public function downloadInvoice($invoiceId)
 {
-    // Fetch the invoice along with the related client and subscription plan
+    Log::info("Download invoice requested", ['invoice_id' => $invoiceId]);
+
+    // Fetch the invoice with its related client
     $invoice = Invoice::with(['client'])->findOrFail($invoiceId);
+    Log::info("Invoice found", ['invoice' => $invoice]);
 
-    // Retrieve the subscription related to the invoice
-    $subscription = Subscription::where('client_id', $invoice->client_id)->firstOrFail();
-
-    // Prepare invoice data for the PDF
+    // Common invoice fields
     $invoiceData = [
         'invoice' => $invoice,
         'client' => $invoice->client,
-        'plan' => $subscription->plan,
         'amount' => $invoice->amount,
-        'start_date' => $subscription->start_date,
-        'end_date' => $subscription->end_date,
         'issue_date' => $invoice->created_at->toDateString(),
         'due_date' => $invoice->due_date,
     ];
 
-    // Generate the invoice PDF
-    $pdf = PDF::loadView('invoice', $invoiceData);
+    if ($invoice->invoice_data_type === 'items') {
+        // Fetch delivery note by invoice_data_id
+        $deliveryNote = DeliveryNote::with('items')->find($invoice->invoice_data_id);
 
-    // Return the PDF as a download with a formatted file name
+        if (!$deliveryNote) {
+            Log::warning("Delivery note not found", ['invoice_data_id' => $invoice->invoice_data_id]);
+            abort(404, 'Delivery note not found for invoice.');
+        }
+
+        Log::info("Delivery note with items found", ['delivery_note' => $deliveryNote]);
+
+        $invoiceData['delivery_note'] = $deliveryNote;
+        $invoiceData['items'] = $deliveryNote->items;
+
+    } elseif ($invoice->invoice_data_type === 'subscription') {
+        // Fetch subscription with plan using invoice_data_id
+        $subscription = Subscription::with('plan')->find($invoice->invoice_data_id);
+
+        if (!$subscription) {
+            Log::warning("Subscription not found", ['invoice_data_id' => $invoice->invoice_data_id]);
+            abort(404, 'Subscription not found for invoice.');
+        }
+
+        Log::info("Subscription with plan found", ['subscription' => $subscription]);
+
+        $invoiceData['plan'] = $subscription->plan;
+        $invoiceData['start_date'] = $subscription->start_date;
+        $invoiceData['end_date'] = $subscription->end_date;
+    } else {
+        Log::error("Unknown invoice data type", ['type' => $invoice->invoice_data_type]);
+        abort(400, 'Invalid invoice data type');
+    }
+
+    // Generate the PDF
+    $template = $invoice->invoice_data_type === 'items' ? 'invoice_from_deliveryNote' : 'invoice';
+     $pdf = PDF::loadView($template, $invoiceData);
+
     return $pdf->download('invoice_' . $invoice->invoice_no . '.pdf');
 }
 

@@ -4,6 +4,8 @@ namespace App\Rest\Controllers;
 
 use App\Models\DeliveryNote;
 use App\Models\Item;
+use App\Models\Invoice;
+use App\Models\Client;
 use App\Models\DeliveryNoteItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -18,12 +20,12 @@ class DeliveryNoteController extends RestController
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+  public function store(Request $request)
 {
     // Validate the incoming request data
     $validator = Validator::make($request->all(), [
+        'client_id' => 'required|exists:clients,id',
         'delivery_number' => 'required|unique:delivery_notes',
-        'recipient' => 'required|string|max:255',
         'delivery_date' => 'required|date',
         'delivery_note_items' => 'required|array',
         'delivery_note_items.*.item_id' => 'required|exists:items,id',
@@ -37,43 +39,62 @@ class DeliveryNoteController extends RestController
         ], 400);
     }
 
-    // Start database transaction
     \DB::beginTransaction();
 
     try {
         // Create the delivery note
         $deliveryNote = DeliveryNote::create([
             'delivery_number' => $request->delivery_number,
-            'recipient' => $request->recipient,
+            'client_id' => $request->client_id,
+            'recipient' => $request->client_id,
             'delivery_date' => $request->delivery_date,
         ]);
 
-        // Create delivery note items and update item status
+        $totalAmount = 0;
+
         foreach ($request->delivery_note_items as $item) {
-            // Create each item record for the delivery note
+            $itemModel = Item::findOrFail($item['item_id']);
+
+            // Calculate subtotal for this item
+            $subtotal = $itemModel->price * $item['quantity'];
+            $totalAmount += $subtotal;
+
+            // Create delivery note item
             DeliveryNoteItem::create([
                 'delivery_note_id' => $deliveryNote->id,
                 'item_id' => $item['item_id'],
                 'quantity' => $item['quantity'],
             ]);
 
-            // Update the corresponding item status and delivered_at
-            $itemModel = Item::findOrFail($item['item_id']);
+            // Update item status
             $itemModel->update([
-                'status' => 'delivered',  // Assuming "delivered" is a valid status
-                'delivered_at' => now(),  // Set the current timestamp
+                'status' => 'delivered',
+                'delivered_at' => now(),
             ]);
         }
 
-        // Commit the transaction
+        // Generate a unique invoice number (you can customize this logic)
+        $invoiceNo = 'INV-' . strtoupper(uniqid());
+
+        // Create the invoice
+        $invoice = Invoice::create([
+            'client_id' => $request->client_id,
+            'invoice_no' => $invoiceNo,
+            'amount' => $totalAmount,
+            'invoice_data_id' =>$deliveryNote->id, // Store the items in JSON format
+            'invoice_data_type' => "items", // Store the items in JSON format
+            'due_date' => now()->addDays(14), // Set due date logic as needed
+            'status' => 'unpaid',
+        ]);
+
         \DB::commit();
 
         return response()->json([
-            'message' => 'Delivery note created successfully!',
-            'data' => new \App\Rest\Resources\DeliveryNoteResource($deliveryNote),
+            'message' => 'Delivery note and invoice created successfully!',
+            'delivery_note' => new \App\Rest\Resources\DeliveryNoteResource($deliveryNote),
+            'invoice' => new \App\Rest\Resources\InvoiceResource($invoice),
         ], 201);
     } catch (\Exception $e) {
-        // Rollback the transaction in case of error
         \DB::rollBack();
 
         return response()->json([
@@ -84,6 +105,7 @@ class DeliveryNoteController extends RestController
 }
 
 
+
     /**
      * Display a listing of delivery notes.
      *
@@ -92,8 +114,8 @@ class DeliveryNoteController extends RestController
     public function index()
     {
         try {
-            // Retrieve all delivery notes with their items
-            $deliveryNotes = DeliveryNote::with('items')->latest()->get();
+            // Retrieve all delivery notes with their items and client
+            $deliveryNotes = DeliveryNote::with(['items', 'client'])->latest()->get();
 
             return response()->json([
                 'success' => true,
@@ -107,6 +129,7 @@ class DeliveryNoteController extends RestController
             ], 500);
         }
     }
+
 
     /**
      * Display the specified delivery note.
