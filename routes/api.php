@@ -78,6 +78,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/generate-invoice/{subscriptionId}', [InvoiceController::class, 'generateInvoice']);
     Route::post('/download-invoice/{subscriptionId}', [InvoiceController::class, 'downloadInvoice']);
     
+    
     Route::get('/failed-jobs', [JobController::class, 'showFailedJobs']);
     Route::resource('expenses', ExpenseController::class);
     Route::resource('products', ProductController::class);

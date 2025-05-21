@@ -19,10 +19,12 @@
         .flex {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
         }
-        .section-box {
-            width: 48%;
+        .column {
+            flex: 1;
+            min-width: 300px;
         }
         .table {
             width: 100%;
@@ -44,11 +46,11 @@
         .text-right {
             text-align: right;
         }
-        .text-center {
-            text-align: center;
-        }
         .text-bold {
             font-weight: bold;
+        }
+        .text-center {
+            text-align: center;
         }
     </style>
 </head>
@@ -67,7 +69,7 @@
             </div>
         </div>
 
-        {{-- From and Bill To --}}
+        {{-- From and Bill To side by side --}}
         <div class="flex mb-4">
             <div class="column">
                 <strong>From:</strong><br>
@@ -85,48 +87,38 @@
             </div>
             
         </div>
-       
 
-        {{-- Items Table --}}
+        {{-- Invoice Items --}}
         <table class="table">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Description</th>
-                    <th>Qty</th>
-                    <th>Unit</th>
+                    <th>Item Description</th>
+                    <th>Quantity</th>
                     <th>Unit Price</th>
                     <th>Total</th>
                 </tr>
             </thead>
             <tbody>
-                @php $grandTotal = 0; @endphp
-                @foreach ($items as $index => $item)
-                    @php
-                        $total = $item->quantity * $item->unit_price;
-                        $grandTotal += $total;
-                    @endphp
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ $item->description ?? 'Item' }}</td>
-                        <td>{{ $item->quantity }}</td>
-                        <td>{{ $item->unit }}</td>
-                        <td>{{ number_format($item->unit_price, 2) }}</td>
-                        <td>{{ number_format($total, 2) }}</td>
-                    </tr>
-                @endforeach
+                <tr>
+                    <td>1</td>
+                    <td>{{ $plan->name ?? 'Subscription Plan' }}</td>
+                    <td>1</td>
+                    <td>{{ number_format($invoice->amount, 2) }}</td>
+                    <td>{{ number_format($invoice->amount, 2) }}</td>
+                </tr>
             </tbody>
         </table>
 
         {{-- Total Amount --}}
         <div class="text-right mb-4">
-            <p><strong>Total Amount:</strong> {{ number_format($grandTotal, 2) }}</p>
+            <p><strong>Total Amount:</strong> {{ number_format($amount, 2) }}</p>
         </div>
 
-        {{-- Bank Info --}}
+        {{-- Bank Account Info --}}
         <div class="mb-4">
             <strong>Bank Details:</strong><br>
-            Account Name: {{ $BANK_ACCOUNT_NAME }}<br>
+            Bank Account Name: {{ $BANK_ACCOUNT_NAME }}<br>
             Bank of Kigali (RWF): {{ $BANK_ACCOUNT_RWF }}<br>
             Bank of Kigali (USD): {{ $BANK_ACCOUNT_USD }}
         </div>

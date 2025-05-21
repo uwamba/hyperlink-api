@@ -23,31 +23,31 @@ class InvoiceController extends RestController
         return InvoiceResource::collection($invoices);
     }
     public function unpaid()
-{
-    $invoices = Invoice::where('status', 'unpaid')
-        ->orderBy('created_at', 'desc')
-        ->get();
+    {
+        $invoices = Invoice::where('status', 'unpaid')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    return InvoiceResource::collection($invoices);
-}
+        return InvoiceResource::collection($invoices);
+    }
 
-public function paid()
-{
-    $invoices = Invoice::where('status', 'paid')
-        ->orderBy('created_at', 'desc')
-        ->get();
+    public function paid()
+    {
+        $invoices = Invoice::where('status', 'paid')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    return InvoiceResource::collection($invoices);
-}
+        return InvoiceResource::collection($invoices);
+    }
 
-public function overdue()
-{
-    $invoices = Invoice::where('status', 'overdue')
-        ->orderBy('created_at', 'desc')
-        ->get();
+    public function overdue()
+    {
+        $invoices = Invoice::where('status', 'overdue')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    return InvoiceResource::collection($invoices);
-}
+        return InvoiceResource::collection($invoices);
+    }
 
     // Show a specific invoice
     public function show($id)
@@ -100,11 +100,8 @@ public function overdue()
 
 
 
-public function downloadInvoice($invoiceId)
+    public function downloadInvoice($invoiceId)
 {
-    Log::info("Download invoice requested", ['invoice_id' => $invoiceId]);
-
-    // Fetch the invoice with its related client
     $invoice = Invoice::with(['client'])->findOrFail($invoiceId);
     Log::info("Invoice found", ['invoice' => $invoice]);
 
@@ -115,6 +112,11 @@ public function downloadInvoice($invoiceId)
         'amount' => $invoice->amount,
         'issue_date' => $invoice->created_at->toDateString(),
         'due_date' => $invoice->due_date,
+        'BANK_ACCOUNT_NAME' => env('BANK_ACCOUNT_NAME', 'Your Company Name'),
+        'BANK_ACCOUNT_RWF' => env('BANK_ACCOUNT_RWF', '1234567890'),
+        'BANK_ACCOUNT_USD' => env('BANK_ACCOUNT_USD', '0987654321'),
+        'COMPANY_NAME' => env('COMPANY_NAME', 'Your Company Name Ltd'),
+        'COMPANY_TIN' => env('COMPANY_TIN', '123456789'),
     ];
 
     if ($invoice->invoice_data_type === 'items') {
@@ -143,19 +145,66 @@ public function downloadInvoice($invoiceId)
         Log::info("Subscription with plan found", ['subscription' => $subscription]);
 
         $invoiceData['plan'] = $subscription->plan;
-        $invoiceData['start_date'] = $subscription->start_date;
-        $invoiceData['end_date'] = $subscription->end_date;
+
     } else {
         Log::error("Unknown invoice data type", ['type' => $invoice->invoice_data_type]);
         abort(400, 'Invalid invoice data type');
     }
 
     // Generate the PDF
-    $template = $invoice->invoice_data_type === 'items' ? 'invoice_from_deliveryNote' : 'invoice';
-     $pdf = PDF::loadView($template, $invoiceData);
+    $template = $invoice->invoice_data_type === 'items' ? 'invoice_from_deliveryNote' : 'manualInvoice';
+    $pdf = PDF::loadView($template, $invoiceData);
 
     return $pdf->download('invoice_' . $invoice->invoice_no . '.pdf');
 }
+
+
+
+    public function generatePDFInvoice($invoiceId)
+    {
+        $invoice = Invoice::with(['client'])->findOrFail($invoiceId);
+        Log::info("Invoice found", ['invoice' => $invoice]);
+
+        // Common invoice fields
+        $invoiceData = [
+            'invoice' => $invoice,
+            'client' => $invoice->client,
+            'amount' => $invoice->amount,
+            'issue_date' => $invoice->created_at->toDateString(),
+            'due_date' => $invoice->due_date,
+            'BANK_ACCOUNT_NAME' => env('BANK_ACCOUNT_NAME', 'Your Company Name'),
+            'BANK_ACCOUNT_RWF' => env('BANK_ACCOUNT_RWF', '1234567890'),
+            'BANK_ACCOUNT_USD' => env('BANK_ACCOUNT_USD', '0987654321'),
+            'COMPANY_NAME' => env('COMPANY_NAME', 'Your Company Name Ltd'),
+            'COMPANY_TIN' => env('COMPANY_TIN', '123456789'),
+        ];
+
+
+        Log::info("Invoice created for Subscription ID: {$invoiceId}");
+
+
+
+        $subscription = Subscription::with('plan')->find($invoice->invoice_data_id);
+
+            if (!$subscription) {
+                Log::warning("Subscription not found", ['invoice_data_id' => $invoice->invoice_data_id]);
+                abort(404, 'Subscription not found for invoice.');
+            }
+
+            Log::info("Subscription with plan found", ['subscription' => $subscription]);
+
+            $invoiceData['plan'] = $subscription->plan;
+           
+
+
+
+        // Generate the PDF using the invoice data
+        $pdf = PDF::loadView('manualInvoice', $invoiceData);
+        return $pdf->download('invoice_' . $invoice->invoice_no . '.pdf');
+
+
+
+    }
 
 
 
