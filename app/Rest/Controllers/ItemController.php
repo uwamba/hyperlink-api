@@ -63,6 +63,7 @@ class ItemController extends RestController
                 'quantity' => 1, // always 1
                 'price' => $data['price'],
                 'brand' => $data['brand'],
+                'status' => 'in_stock',
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -107,12 +108,12 @@ class ItemController extends RestController
     /**
      * Remove the specified item from storage.
      */
-   
+
     public function destroy($id)
      {
          $item = Item::findOrFail($id);
          $item->delete();
- 
+
          return response()->json(['message' => '[Item deleted successfully'], 200);
      }
 }

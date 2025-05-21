@@ -20,7 +20,6 @@ return new class extends Migration
             $table->decimal('price', 10, 2)->default(0.00);
             $table->string('brand')->nullable();
             $table->enum('status', ['in_stock', 'delivered', 'reserved'])->default('in_stock');
-            $table->uuid('client_id');
             $table->timestamp('delivered_at')->nullable();
             // Remove timestamps if you set `public $timestamps = false;` in your model
             $table->timestamps();
