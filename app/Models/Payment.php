@@ -10,7 +10,7 @@ class Payment extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'client_id', 'invoice_id', 'amount_paid', 'payment_method', 'transaction_id','status',
+        'client_id', 'invoice_id', 'amount_paid', 'payment_method', 'transaction_id','status','created_by', 'updated_by',
     ];
 
     public function invoice()

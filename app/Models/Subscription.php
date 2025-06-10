@@ -17,6 +17,7 @@ class Subscription extends Model {
         'status',
         'contract',
         'billing_date',
+        'created_by', 'updated_by',
         
     ];
 

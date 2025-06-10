@@ -15,6 +15,7 @@ class Supplier extends Model
         'address',
         'telephone',
         'email',
+        'created_by', 'updated_by',
     ];
 
     /**

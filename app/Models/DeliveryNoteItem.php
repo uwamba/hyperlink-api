@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DeliveryNoteItem extends Model
 {
-    protected $fillable = ['delivery_note_id', 'item_id', 'quantity'];
+    protected $fillable = ['delivery_note_id', 'item_id', 'quantity','created_by', 'updated_by',];
 
     public function deliveryNote(): BelongsTo
     {

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class PettyCashFloatRequest extends Model
 {
     protected $fillable = [
-        'user_id', 'amount', 'reason', 'status', 'approved_by', 'approved_at', 'requested_for'
+        'user_id', 'amount', 'reason', 'status', 'approved_by', 'approved_at', 'requested_for','created_by', 'updated_by',
     ];
 
     public function user() {

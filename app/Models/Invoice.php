@@ -11,7 +11,7 @@ class Invoice extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'client_id', 'invoice_no', 'amount', 'due_date', 'status', 'invoice_data_type', 'invoice_data_id',
+        'client_id', 'invoice_no', 'amount', 'due_date', 'status', 'invoice_data_type', 'invoice_data_id','created_by', 'updated_by',
     ];
 
     public function client()

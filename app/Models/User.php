@@ -30,6 +30,7 @@ public function sendPasswordResetNotification($token)
         'email',
         'password',
         'role', // Add this line
+        'created_by', 'updated_by',
     ];
 
     /**

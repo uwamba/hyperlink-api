@@ -15,5 +15,6 @@ class Purchase extends Model
         'purchase_date',
         'total_amount',
         'note',
+        'created_by', 'updated_by',
     ];
 }

@@ -15,6 +15,7 @@ class Billing extends Model {
         'amount',
         'due_date',
         'status',
+        'created_by', 'updated_by',
     ];
 
     /**

@@ -18,5 +18,6 @@ class Asset extends Model
         'location',
         'status',
         'description', // ✅ include description
+        'created_by', 'updated_by',
     ];
 }

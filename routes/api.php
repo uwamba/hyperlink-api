@@ -23,7 +23,7 @@ use App\Rest\Controllers\DeliveryNoteController;
 use App\Rest\Controllers\ReportController;
 use App\Rest\Controllers\PettyCashFloatRequestController;
 use App\Rest\Controllers\FloatTransactionController;
-
+use App\Rest\Controllers\UserPerformanceController;
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
@@ -35,8 +35,20 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 Route::post('password/email', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('password/reset', [ResetPasswordController::class, 'reset']);
 
-
+Route::post('/verify-otp', [SupportController::class, 'verifyOtp']);
 Route::middleware('auth:api')->group(function () {
+
+
+
+Route::get('/stats/user-performance', [UserPerformanceController::class, 'index']);
+Route::get('/stats/performance-payments', [UserPerformanceController::class, 'performancePayments']);
+Route::get('/stats/items', [UserPerformanceController::class, 'items']);
+Route::get('/stats/delivery-notes', [UserPerformanceController::class, 'deliveryNotes']);
+Route::get('/stats/subscriptions', [UserPerformanceController::class, 'subscriptions']);
+Route::get('/stats/invoices', [UserPerformanceController::class, 'invoices']);
+Route::get('/stats/purchases', [UserPerformanceController::class, 'purchases']);
+Route::get('/stats/assets', [UserPerformanceController::class, 'assets']);
+
 
     Route::middleware('role:super_user')->group(function () {
 
@@ -77,8 +89,8 @@ Route::middleware('auth:api')->group(function () {
     Route::resource('invoices', InvoiceController::class);
     Route::post('/generate-invoice/{subscriptionId}', [InvoiceController::class, 'generateInvoice']);
     Route::post('/download-invoice/{subscriptionId}', [InvoiceController::class, 'downloadInvoice']);
-    
-    
+
+
     Route::get('/failed-jobs', [JobController::class, 'showFailedJobs']);
     Route::resource('expenses', ExpenseController::class);
     Route::resource('products', ProductController::class);
@@ -101,7 +113,7 @@ Route::middleware('auth:api')->group(function () {
 
     Route::apiResource('users', UsersController::class);
 
-    
+
     Route::get('petty-cash-floats/', [PettyCashFloatRequestController::class, 'index']);
     Route::post('petty-cash-floats/', [PettyCashFloatRequestController::class, 'store']);
     Route::delete('petty-cash-floats/{id}', [PettyCashFloatRequestController::class, 'destroy']);
@@ -115,17 +127,17 @@ Route::middleware('auth:api')->group(function () {
 
 
 
-Route::apiResource('float-transactions', FloatTransactionController::class);
+    Route::apiResource('float-transactions', FloatTransactionController::class);
 
 
 
-   
+
 
 
 });
 
 
-    
+
 
 Route::post('/report/salesReport', [ReportController::class, 'salesReport']);
 Route::post('/report/purchasesReport', [ReportController::class, 'purchaseReport']);
@@ -144,11 +156,13 @@ Route::get('/statistics', [DashboardStatisticsController::class, 'index']);
 // routes/api.php
 Route::resource('suppliers', SupplierController::class);
 
-Route::post('/support', [SupportController::class, 'store']);
-Route::put('/support/{id}/status', [SupportController::class, 'updateStatus']);
+Route::post('/supports', [SupportController::class, 'store']);
+Route::put('/supports/{id}/status', [SupportController::class, 'updateStatus']);
 Route::get('/supports', [SupportController::class, 'index']);
 Route::get('/support/{id}', [SupportController::class, 'show']);
 
 Route::middleware(['role:admin'])->get('/admin/dashboard', function () {
     return response()->json(['message' => 'Welcome, Admin!']);
 });
+
+

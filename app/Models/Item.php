@@ -19,6 +19,7 @@ class Item extends Model
         'status',
         'client_id',
         'delivered_at',
+        'created_by', 'updated_by',
         
     ];  
     protected $casts = [

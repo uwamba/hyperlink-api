@@ -27,6 +27,10 @@ class Support extends Model
         'email',
         'description',
         'address',
+        'issue',
+        'category',
+        'status',
+        'created_by', 'updated_by',
     ];
 
     /**

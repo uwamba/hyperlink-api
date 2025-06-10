@@ -17,6 +17,7 @@ class Plan extends Model {
         'provider_name',
         'supplier_id',
         'provider_price',
+        'created_by', 'updated_by',
     ];
 
     /**
