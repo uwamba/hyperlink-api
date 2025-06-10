@@ -36,6 +36,7 @@ Route::post('password/email', [ForgotPasswordController::class, 'sendResetLinkEm
 Route::post('password/reset', [ResetPasswordController::class, 'reset']);
 
 Route::post('/verify-otp', [SupportController::class, 'verifyOtp']);
+Route::post('/supports/{id}/send-feedback', [SupportController::class, 'sendFeedback']);
 Route::middleware('auth:api')->group(function () {
 
 
@@ -131,12 +132,15 @@ Route::get('/stats/assets', [UserPerformanceController::class, 'assets']);
 
 
 
-
+Route::post('/supports', [SupportController::class, 'store']);
+Route::put('/supports/{id}/status', [SupportController::class, 'updateStatus']);
+Route::get('/supports', [SupportController::class, 'index']);
+Route::get('/support/{id}', [SupportController::class, 'show']);
 
 
 });
 
-
+Route::post('/client/supports', [SupportController::class, 'store']);
 
 
 Route::post('/report/salesReport', [ReportController::class, 'salesReport']);
@@ -156,10 +160,7 @@ Route::get('/statistics', [DashboardStatisticsController::class, 'index']);
 // routes/api.php
 Route::resource('suppliers', SupplierController::class);
 
-Route::post('/supports', [SupportController::class, 'store']);
-Route::put('/supports/{id}/status', [SupportController::class, 'updateStatus']);
-Route::get('/supports', [SupportController::class, 'index']);
-Route::get('/support/{id}', [SupportController::class, 'show']);
+
 
 Route::middleware(['role:admin'])->get('/admin/dashboard', function () {
     return response()->json(['message' => 'Welcome, Admin!']);

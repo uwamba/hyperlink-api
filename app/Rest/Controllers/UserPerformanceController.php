@@ -57,137 +57,148 @@ class UserPerformanceController extends RestController
         return [now()->startOfMonth(), now()->endOfMonth()];
     }
 
-    public function performancePayments(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+   public function performancePayments(): JsonResponse
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        $data = Payment::whereBetween('created_at', [$start, $end])
-            ->orWhereBetween('updated_at', [$start, $end])
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($payments, $userId) use ($start, $end) {
-                return [
-                    'user_id' => $userId,
-                    'created_this_month' => $payments->whereBetween('created_at', [$start, $end])->count(),
-                    'updated_this_month' => $payments->whereBetween('updated_at', [$start, $end])->count(),
-                ];
-            })->values();
+    foreach ($users as $user) {
+        $createdCount = Payment::where('created_by', $user->id)
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
 
-        return response()->json(['success' => true, 'data' => $data]);
+        $updatedCount = Payment::where('updated_by', $user->id)
+            ->whereBetween('updated_at', [$start, $end])
+            ->count();
+
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email, // or use name/username if preferred
+            'created_this_month' => $createdCount,
+            'updated_this_month' => $updatedCount,
+        ];
     }
+
+    return response()->json(['success' => true, 'data' => $data]);
+}
 
     public function items(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        $data = Item::whereBetween('created_at', [$start, $end])
-            ->orWhereBetween('updated_at', [$start, $end])
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($items, $userId) use ($start, $end) {
-                return [
-                    'user_id' => $userId,
-                    'items_created_this_month' => $items->whereBetween('created_at', [$start, $end])->count(),
-                    'items_updated_this_month' => $items->whereBetween('updated_at', [$start, $end])->count(),
-                ];
-            })->values();
+    foreach ($users as $user) {
+        $createdCount = Item::where('created_by', $user->id)
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
 
-        return response()->json(['success' => true, 'data' => $data]);
+        $updatedCount = Item::where('updated_by', $user->id)
+            ->whereBetween('updated_at', [$start, $end])
+            ->count();
+
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email,
+            'items_created_this_month' => $createdCount,
+            'items_updated_this_month' => $updatedCount,
+        ];
     }
+
+    return response()->json(['success' => true, 'data' => $data]);
+}
+
 
     public function deliveryNotes(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        $data = DeliveryNote::whereBetween('created_at', [$start, $end])
-            ->orWhereBetween('updated_at', [$start, $end])
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($notes, $userId) use ($start, $end) {
-                return [
-                    'user_id' => $userId,
-                    'created_this_month' => $notes->whereBetween('created_at', [$start, $end])->count(),
-                    'updated_this_month' => $notes->whereBetween('updated_at', [$start, $end])->count(),
-                ];
-            })->values();
-
-        return response()->json(['success' => true, 'data' => $data]);
+    foreach ($users as $user) {
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email,
+            'created_this_month' => DeliveryNote::where('created_by', $user->id)->whereBetween('created_at', [$start, $end])->count(),
+            'updated_this_month' => DeliveryNote::where('updated_by', $user->id)->whereBetween('updated_at', [$start, $end])->count(),
+        ];
     }
 
-    public function subscriptions(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+    return response()->json(['success' => true, 'data' => $data]);
+}
 
-        $data = Subscription::whereBetween('created_at', [$start, $end])
-            ->orWhereBetween('updated_at', [$start, $end])
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($subs, $userId) use ($start, $end) {
-                return [
-                    'user_id' => $userId,
-                    'created_this_month' => $subs->whereBetween('created_at', [$start, $end])->count(),
-                    'updated_this_month' => $subs->whereBetween('updated_at', [$start, $end])->count(),
-                ];
-            })->values();
+public function subscriptions(): JsonResponse
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        return response()->json(['success' => true, 'data' => $data]);
+    foreach ($users as $user) {
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email,
+            'created_this_month' => Subscription::where('created_by', $user->id)->whereBetween('created_at', [$start, $end])->count(),
+            'updated_this_month' => Subscription::where('updated_by', $user->id)->whereBetween('updated_at', [$start, $end])->count(),
+        ];
     }
 
-    public function invoices(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+    return response()->json(['success' => true, 'data' => $data]);
+}
 
-        // Example: updating overdue invoices to paid is a separate operation, this endpoint just reports counts
+public function invoices(): JsonResponse
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        $data = Invoice::whereBetween('updated_at', [$start, $end])
-            ->where('status', 'paid')
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($invoices, $userId) {
-                return [
-                    'user_id' => $userId,
-                    'invoices_paid_this_month' => $invoices->count(),
-                ];
-            })->values();
-
-        return response()->json(['success' => true, 'data' => $data]);
+    foreach ($users as $user) {
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email,
+            'invoices_paid_this_month' => Invoice::where('updated_by', $user->id)
+                ->where('status', 'paid')
+                ->whereBetween('updated_at', [$start, $end])
+                ->count(),
+        ];
     }
 
-    public function purchases(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+    return response()->json(['success' => true, 'data' => $data]);
+}
 
-        $data = Purchase::whereBetween('created_at', [$start, $end])
-            ->orWhereBetween('updated_at', [$start, $end])
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($purchases, $userId) use ($start, $end) {
-                return [
-                    'user_id' => $userId,
-                    'purchases_created_this_month' => $purchases->whereBetween('created_at', [$start, $end])->count(),
-                    'purchases_updated_this_month' => $purchases->whereBetween('updated_at', [$start, $end])->count(),
-                ];
-            })->values();
+public function purchases(): JsonResponse
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        return response()->json(['success' => true, 'data' => $data]);
+    foreach ($users as $user) {
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email,
+            'purchases_created_this_month' => Purchase::where('created_by', $user->id)->whereBetween('created_at', [$start, $end])->count(),
+            'purchases_updated_this_month' => Purchase::where('updated_by', $user->id)->whereBetween('updated_at', [$start, $end])->count(),
+        ];
     }
 
-    public function assets(): JsonResponse
-    {
-        [$start, $end] = $this->getMonthRange();
+    return response()->json(['success' => true, 'data' => $data]);
+}
 
-        $data = Asset::whereBetween('created_at', [$start, $end])
-            ->orWhereBetween('updated_at', [$start, $end])
-            ->get()
-            ->groupBy('user_id')
-            ->map(function ($assets, $userId) use ($start, $end) {
-                return [
-                    'user_id' => $userId,
-                    'assets_created_this_month' => $assets->whereBetween('created_at', [$start, $end])->count(),
-                    'assets_updated_this_month' => $assets->whereBetween('updated_at', [$start, $end])->count(),
-                ];
-            })->values();
+public function assets(): JsonResponse
+{
+    [$start, $end] = $this->getMonthRange();
+    $users = User::all();
+    $data = [];
 
-        return response()->json(['success' => true, 'data' => $data]);
+    foreach ($users as $user) {
+        $data[] = [
+            'user_id' => $user->id,
+            'user_name' => $user->email,
+            'assets_created_this_month' => Asset::where('created_by', $user->id)->whereBetween('created_at', [$start, $end])->count(),
+            'assets_updated_this_month' => Asset::where('updated_by', $user->id)->whereBetween('updated_at', [$start, $end])->count(),
+        ];
     }
+
+    return response()->json(['success' => true, 'data' => $data]);
+}
 }

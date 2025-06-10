@@ -16,11 +16,13 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Notification;
 
-
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SendVerificationOtpMail;
 use App\Models\Client;
+use App\Mail\SupportFeedbackMail;
 
 
-
+   use Illuminate\Support\Facades\Log;
 
 class SupportController extends RestController
 {
@@ -37,95 +39,96 @@ class SupportController extends RestController
     /**
      * Store a newly created resource in storage.
      */
- 
 
 
 
 
 
-public function store(Request $request)
-{
-    $data = $request->validate([
-        'client_id' => 'nullable|uuid',
-        'email' => 'required|email',
-        'issue' => 'required|string|max:255',
-        'category' => 'required|string|max:255',
-        'description' => 'required|string|max:2000',
-        'address' => 'nullable|string',
-        'name' => 'nullable|string|max:255', // For new client registration
-        'phone' => 'nullable|string|max:20', // For new client registration
-    ]);
 
-    // Check if client exists
-    $client = Client::where('email', $data['email'])->first();
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'client_id' => 'nullable|uuid',
+            'email' => 'required|email',
+            'issue' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'description' => 'required|string|max:2000',
+            'address' => 'nullable|string',
+            'name' => 'nullable|string|max:255', // For new client registration
+            'phone' => 'nullable|string|max:20', // For new client registration
+        ]);
 
-    if (!$client) {
-        // Client doesn't exist - need to verify email and register
-        $verified = EmailVerification::where('email', $data['email'])
-            ->whereNotNull('verified_at')
-            ->exists();
+        // Check if client exists
+        $client = Client::where('email', $data['email'])->first();
 
-        if (!$verified) {
-            // Generate OTP
-            $otp = rand(100000, 999999);
-            
-            // Store or update verification record
-            EmailVerification::updateOrCreate(
-                ['email' => $data['email']],
-                [
-                    'otp' => $otp,
-                    'expires_at' => Carbon::now()->addMinutes(30),
-                    'verified_at' => null
-                ]
-            );
+        if (!$client) {
+            // Client doesn't exist - need to verify email and register
+            $verified = EmailVerification::where('email', $data['email'])
+                ->whereNotNull('verified_at')
+                ->exists();
 
-            try {
-                Notification::route('mail', $data['email'])
-                    ->notify(new SendVerificationOtp($otp));
+            if (!$verified) {
+                // Generate OTP
+                $otp = rand(100000, 999999);
 
-                return response()->json([
-                    'message' => 'OTP sent to email. Please verify to register and create support request.',
-                    'requires_verification' => true,
-                    'email' => $data['email'],
-                    'is_new_client' => true
-                ], 202);
-            } catch (\Exception $e) {
-                \Log::error('OTP sending failed: '.$e->getMessage());
-                return response()->json([
-                    'message' => 'Failed to send OTP. Please try again.',
-                    'error' => 'Mail sending failed'
-                ], 500);
+                // Store or update verification record
+                EmailVerification::updateOrCreate(
+                    ['email' => $data['email']],
+                    [
+                        'otp' => $otp,
+                        'expires_at' => Carbon::now()->addMinutes(30),
+                        'verified_at' => null
+                    ]
+                );
+
+                try {
+                    $email = $data['email'];
+
+                    Mail::to($email)->send(new SendVerificationOtpMail($otp));
+
+                    return response()->json([
+                        'message' => 'OTP sent to email. Please verify to register and create support request.',
+                        'requires_verification' => true,
+                        'email' => $data['email'],
+                        'is_new_client' => true
+                    ], 202);
+                } catch (Exception $e) {
+                    \Log::error('OTP sending failed: ' . $e->getMessage());
+                    return response()->json([
+                        'message' => 'Failed to send OTP. Please try again.',
+                        'error' => 'Mail sending failed'
+                    ], 500);
+                }
             }
+
+            // Email is verified but client doesn't exist - register new client
+            $client = Client::create([
+                'name' => $data['name'] ?? 'Unknown', // Default name if not provided
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+                'address' => $data['address'] ?? null,
+                'created_by' => auth()->id() ?? null,
+                'updated_by' => auth()->id() ?? null,
+            ]);
         }
 
-        // Email is verified but client doesn't exist - register new client
-        $client = Client::create([
-            'name' => $data['name'] ?? 'Unknown', // Default name if not provided
+        // Now create the support ticket with the client (existing or new)
+        $supportData = [
+            'client_id' => $client->id,
             'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'address' => $data['address'] ?? null,
-            'created_by' => auth()->id() ?? null,
-            'updated_by' => auth()->id() ?? null,
-        ]);
+            'issue' => $data['issue'],
+            'category' => $data['category'],
+            'description' => $data['description'],
+            'address' => $data['address'] ?? $client->address,
+        ];
+
+        $support = Support::create($supportData);
+
+        return response()->json([
+            'message' => 'Support ticket created successfully',
+            'data' => $support
+        ], 201);
     }
-
-    // Now create the support ticket with the client (existing or new)
-    $supportData = [
-        'client_id' => $client->id,
-        'email' => $data['email'],
-        'issue' => $data['issue'],
-        'category' => $data['category'],
-        'description' => $data['description'],
-        'address' => $data['address'] ?? $client->address,
-    ];
-
-    $support = Support::create($supportData);
-
-    return response()->json([
-        'message' => 'Support ticket created successfully',
-        'data' => $support
-    ], 201);
-}
 
     /**
      * Display the specified resource.
@@ -145,10 +148,14 @@ public function store(Request $request)
     {
 
         $validated = $request->validate([
-            'client_id' => 'required|string|max:255',
-            'email' => 'required|email|unique:clients,email',
-            'description' => 'nullable|string|max:20',
+            'client_id' => 'nullable|uuid',
+            'email' => 'required|email',
+            'issue' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'description' => 'required|string|max:2000',
             'address' => 'nullable|string',
+            'name' => 'nullable|string|max:255', // For new client registration
+            'phone' => 'nullable|string|max:20', // For new client registration
         ]);
 
         $support->update($validated);
@@ -171,30 +178,79 @@ public function store(Request $request)
     }
 
 
-    public function verifyEmail(Request $request)
+public function updateStatus(Request $request, $id)
 {
-    $request->validate([
-        'email' => 'required|email',
-        'otp' => 'required|string',
+    Log::info("UpdateStatus called", [
+        'ticket_id' => $id,
+        'payload' => $request->all(),
     ]);
 
-    $verification = EmailVerification::where('email', $request->email)
-        ->where('otp', $request->otp)
-        ->where('expires_at', '>', now())
-        ->first();
+    $request->validate([
+        'status' => 'required',
+    ]);
 
-    if (!$verification) {
-        return response()->json(['message' => 'Invalid or expired OTP'], 400);
+    $support = Support::findOrFail($id);
+
+    Log::info("Found support ticket", [
+        'ticket_id' => $support->id,
+        'current_status' => $support->status,
+    ]);
+
+    $support->status = $request->status;
+    $support->save();
+
+    Log::info("Status updated successfully", [
+        'ticket_id' => $support->id,
+        'new_status' => $support->status,
+    ]);
+
+    return response()->json([
+        'message' => 'Status updated successfully.',
+        'data' => $support,
+    ]);
+}
+
+
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'otp' => 'required|string',
+        ]);
+
+        $verification = EmailVerification::where('email', $request->email)
+            ->where('otp', $request->otp)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$verification) {
+            return response()->json(['message' => 'Invalid or expired OTP'], 400);
+        }
+
+        $verification->update(['verified_at' => now()]);
+
+        // Optional: Update all support requests with this email to verified status
+        Support::where('email', $request->email)
+            ->update(['email_verified_at' => now()]);
+
+        return response()->json(['message' => 'Email verified successfully']);
     }
 
-    $verification->update(['verified_at' => now()]);
+    public function sendFeedback(Request $request, $id)
+    {
+        $request->validate([
+            'feedback' => 'required|string',
+        ]);
 
-    // Optional: Update all support requests with this email to verified status
-    Support::where('email', $request->email)
-        ->update(['email_verified_at' => now()]);
+        $ticket = Support::with('client')->findOrFail($id);
 
-    return response()->json(['message' => 'Email verified successfully']);
-}
+
+        Mail::to($ticket->email)->send(new SupportFeedbackMail($ticket, $request->feedback));
+
+        return response()->json(['message' => 'Feedback sent to client.']);
+    }
+
 
 
     /**

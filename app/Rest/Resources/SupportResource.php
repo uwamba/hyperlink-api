@@ -18,6 +18,9 @@ class SupportResource extends JsonResource
             'email' => $this->email,
             'description' => $this->description,
             'address' => $this->address,
+            'issue' => $this->issue,
+            'status' => $this->status,
+            'category' => $this->category,
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
         ];
