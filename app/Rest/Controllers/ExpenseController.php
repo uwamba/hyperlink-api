@@ -78,21 +78,57 @@ class ExpenseController extends RestController
      * @method PATCH
      */
     public function update(Request $request, Expense $expense)
-    {
-        // Validate incoming request data
-        $validated = $request->validate([
-            'description'  => 'required|string|max:500',
-            'amount'       => 'required|numeric|min:0',
-            'expense_date' => 'required|date',
-            'category'     => 'nullable|string|max:255',
-        ]);
+{
+    // ✅ Validate incoming request data
+    $validated = $request->validate([
+        'description'  => 'required|string|max:500',
+        'amount'       => 'required|numeric|min:0',
+        'expense_date' => 'required|date',
+        'category'     => 'nullable|string|max:255',
+    ]);
 
-        // Update the expense with validated data
-        $expense->update($validated);
+    // ✅ Get the logged-in user
+    $user = auth()->user();
 
-        // Return the updated expense as a resource
-        return new ExpenseResource($expense);
+    if (!$user) {
+        return response()->json(['message' => 'User not authenticated'], 401);
     }
+
+    // ✅ Get the user's latest float transaction
+    $lastTransaction = FloatTransaction::where('user_id', $user->id)
+        ->latest()
+        ->first();
+
+    $currentBalance = $lastTransaction ? $lastTransaction->balance_after : 0;
+
+    // ✅ Find difference between old and new amount
+    $oldAmount = $expense->amount;
+    $newAmount = $validated['amount'];
+    $difference = $oldAmount - $newAmount; // positive means refund to float, negative means deduction
+
+    // ✅ Compute the new balance
+    $newBalance = $currentBalance + $difference;
+
+    // ✅ Record a float transaction for this adjustment
+    FloatTransaction::create([
+        'user_id' => $user->id,
+        'amount' => abs($difference),
+        'action' => 'Expense Updated',
+        'balance_before' => $currentBalance,
+        'balance_after' => $newBalance,
+        'description' => "Adjustment for updated expense: {$expense->description}",
+    ]);
+
+    // ✅ Update the expense record
+    $expense->update($validated);
+
+    // ✅ Return response
+    return response()->json([
+        'message' => 'Expense updated successfully',
+        'expense' => $expense,
+        'new_balance' => $newBalance,
+    ], 200);
+}
 
     /**
      * Remove the specified expense from storage.
