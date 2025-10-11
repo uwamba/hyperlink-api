@@ -97,18 +97,49 @@ class ExpenseController extends RestController
     /**
      * Remove the specified expense from storage.
      */
-    public function destroy($expense)
-    {
-        // Find the expense by ID
-        $expense = Expense::find($expense);
+  public function destroy($id)
+{
+    // Find the expense by ID
+    $expense = Expense::find($id);
 
-        if (!$expense) {
-            return response()->json(['message' => 'Expense not found'], 404);
-        }
-
-        // Delete the expense
-        $expense->delete();
-
-        return response()->json(['message' => 'Expense deleted successfully'], 200);
+    if (!$expense) {
+        return response()->json(['message' => 'Expense not found'], 404);
     }
+
+    // ✅ Assume the logged-in user made the expense
+    $user = auth()->user();
+
+    if (!$user) {
+        return response()->json(['message' => 'User not authenticated'], 401);
+    }
+
+    
+    $lastTransaction = FloatTransaction::where('user_id', $user->id)
+        ->latest()
+        ->first();
+
+    $currentBalance = $lastTransaction ? $lastTransaction->balance_after : 0;
+
+    // ✅ Calculate new balance after deleting expense
+    $newBalance = $currentBalance + $expense->amount;
+
+    // ✅ Record the float transaction for traceability
+    FloatTransaction::create([
+        'user_id' => $user->id,
+        'amount' => $expense->amount,
+        'action' => 'Expense Deleted',
+        'balance_before' => $currentBalance,
+        'balance_after' => $newBalance,
+        'description' => 'Reversal of deleted expense: ' . $expense->description,
+    ]);
+
+    // ✅ Delete the expense
+    $expense->delete();
+
+    return response()->json([
+        'message' => 'Expense deleted successfully',
+        'new_balance' => $newBalance,
+    ], 200);
+}
+
 }
