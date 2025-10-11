@@ -113,7 +113,7 @@ class ExpenseController extends RestController
     FloatTransaction::create([
         'user_id' => $user->id,
         'amount' => abs($difference),
-        'action' => 'Expense Updated',
+        'action' => 'expensed',
         'balance_before' => $currentBalance,
         'balance_after' => $newBalance,
         'description' => "Adjustment for updated expense: {$expense->description}",
