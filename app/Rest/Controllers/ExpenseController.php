@@ -97,7 +97,7 @@ class ExpenseController extends RestController
     /**
      * Remove the specified expense from storage.
      */
-  public function destroy($id)
+ public function destroy($id)
 {
     // Find the expense by ID
     $expense = Expense::find($id);
@@ -107,14 +107,14 @@ class ExpenseController extends RestController
     }
 
     // ✅ Assume the logged-in user made the expense
-    $id = Auth::id();
+    $user = auth()->user();
 
     if (!$user) {
         return response()->json(['message' => 'User not authenticated'], 401);
     }
 
-    
-    $lastTransaction = FloatTransaction::where('user_id', $id)
+    // ✅ Get user's last float transaction to know their current balance
+    $lastTransaction = FloatTransaction::where('user_id', $user->id)
         ->latest()
         ->first();
 
@@ -125,7 +125,7 @@ class ExpenseController extends RestController
 
     // ✅ Record the float transaction for traceability
     FloatTransaction::create([
-        'user_id' => $id,
+        'user_id' => $user->id,
         'amount' => $expense->amount,
         'action' => 'Expense Deleted',
         'balance_before' => $currentBalance,
