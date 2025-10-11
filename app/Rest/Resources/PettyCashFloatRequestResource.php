@@ -16,7 +16,8 @@ class PettyCashFloatRequestResource extends JsonResource
 
 public function toArray($request): array
 {
-    $latestBalance = FloatTransaction::where('user_id', 1)
+   $user = auth()->user();
+    $latestBalance = FloatTransaction::where('user_id', $user->id)
         ->orderByDesc('id')
         ->value('balance_after') ?? 0;
 
