@@ -107,14 +107,14 @@ class ExpenseController extends RestController
     }
 
     // ✅ Assume the logged-in user made the expense
-    $user = auth()->user();
+    $id = Auth::id();
 
     if (!$user) {
         return response()->json(['message' => 'User not authenticated'], 401);
     }
 
     
-    $lastTransaction = FloatTransaction::where('user_id', $user->id)
+    $lastTransaction = FloatTransaction::where('user_id', $id)
         ->latest()
         ->first();
 
@@ -125,7 +125,7 @@ class ExpenseController extends RestController
 
     // ✅ Record the float transaction for traceability
     FloatTransaction::create([
-        'user_id' => $user->id,
+        'user_id' => $id,
         'amount' => $expense->amount,
         'action' => 'Expense Deleted',
         'balance_before' => $currentBalance,
