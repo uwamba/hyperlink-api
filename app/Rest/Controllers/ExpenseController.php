@@ -127,7 +127,7 @@ class ExpenseController extends RestController
     FloatTransaction::create([
         'user_id' => $user->id,
         'amount' => $expense->amount,
-        'action' => 'Expense Deleted',
+        'action' => 'expensed',
         'balance_before' => $currentBalance,
         'balance_after' => $newBalance,
         'description' => 'Reversal of deleted expense: ' . $expense->description,
