@@ -19,7 +19,9 @@ class ExpenseController extends RestController
      */
     public function index()
     {
-        return ExpenseResource::collection(Expense::all());
+        //return ExpenseResource::collection(Expense::all());
+        return ExpenseResource::collection(Expense::orderBy('created_at', 'desc')->get());
+
     }
 
     /**
