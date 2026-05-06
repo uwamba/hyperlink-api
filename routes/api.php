@@ -24,7 +24,7 @@ use App\Rest\Controllers\ReportController;
 use App\Rest\Controllers\PettyCashFloatRequestController;
 use App\Rest\Controllers\FloatTransactionController;
 use App\Rest\Controllers\UserPerformanceController;
-
+use App\Rest\Controllers\ChatbotController;
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
@@ -50,6 +50,8 @@ Route::get('/stats/invoices', [UserPerformanceController::class, 'invoices']);
 Route::get('/stats/purchases', [UserPerformanceController::class, 'purchases']);
 Route::get('/stats/assets', [UserPerformanceController::class, 'assets']);
 
+
+Route::post('/chatbot', [ChatbotController::class, 'reply']);
 
     Route::middleware('role:super_user')->group(function () {
 
