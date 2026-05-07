@@ -89,37 +89,44 @@ class ChatbotController extends RestController
 
     // Step 2: Send message in a session
     public function reply(Request $request)
-    {
-        $data = $request->validate([
-            'session_id' => 'required|uuid|exists:chat_sessions,id',
-            'message'    => 'required|string|max:1000',
-        ]);
+{
+    $data = $request->validate([
+        'session_id' => 'required|uuid|exists:chat_sessions,id',
+        'message'    => 'required|string|max:1000',
+    ]);
 
-        $session = ChatSession::findOrFail($data['session_id']);
+    $session = ChatSession::findOrFail($data['session_id']);
 
-        // Save user message
-        ChatMessage::create([
-            'session_id' => $session->id,
-            'sender'     => 'user',
-            'message'    => $data['message'],
-        ]);
+    // Save user message
+    ChatMessage::create([
+        'session_id' => $session->id,
+        'sender'     => 'user',
+        'message'    => $data['message'],
+    ]);
 
-        // Get bot reply
-        $replyText = $this->findReply(strtolower(trim($data['message'])));
-
-        // Save bot reply
-        $botMessage = ChatMessage::create([
-            'session_id' => $session->id,
-            'sender'     => 'bot',
-            'message'    => $replyText,
-        ]);
-
+    // ── If agent has joined, do NOT respond with bot ──
+    if (in_array($session->status, ['with_agent', 'waiting_agent'])) {
         return response()->json([
-            'reply'      => $replyText,
-            'message_id' => $botMessage->id,
-            'status'     => 'success',
+            'reply'  => null,
+            'status' => 'agent_handling',
         ]);
     }
+
+    // Bot reply only when no agent involved
+    $replyText = $this->findReply(strtolower(trim($data['message'])));
+
+    $botMessage = ChatMessage::create([
+        'session_id' => $session->id,
+        'sender'     => 'bot',
+        'message'    => $replyText,
+    ]);
+
+    return response()->json([
+        'reply'      => $replyText,
+        'message_id' => $botMessage->id,
+        'status'     => 'success',
+    ]);
+}
 
     // Step 3: User selects a quick issue
     public function selectIssue(Request $request)
