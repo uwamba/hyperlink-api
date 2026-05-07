@@ -201,4 +201,79 @@ class ChatbotController extends RestController
 
         return "I'm not sure I understand. Please select one of the common issues below, or type your question differently. You can also click 'Talk to Agent' for direct help.";
     }
+
+
+    // Get all sessions (for dashboard list)
+public function getSessions(Request $request)
+{
+    $sessions = ChatSession::with(['messages' => function($q) {
+            $q->latest()->limit(1);
+        }])
+        ->orderByRaw("FIELD(status, 'waiting_agent', 'with_agent', 'active', 'closed')")
+        ->orderBy('updated_at', 'desc')
+        ->get()
+        ->map(function($session) {
+            return [
+                'id'                 => $session->id,
+                'name'               => $session->name,
+                'email'              => $session->email,
+                'phone'              => $session->phone,
+                'status'             => $session->status,
+                'issue_category'     => $session->issue_category,
+                'is_verified_client' => $session->is_verified_client,
+                'last_message'       => $session->messages->first()?->message,
+                'last_message_at'    => $session->messages->first()?->created_at,
+                'created_at'         => $session->created_at,
+            ];
+        });
+
+    return response()->json(['sessions' => $sessions]);
+}
+
+// Agent sends a message to a session
+public function agentReply(Request $request)
+{
+    $data = $request->validate([
+        'session_id' => 'required|uuid|exists:chat_sessions,id',
+        'message'    => 'required|string|max:2000',
+        'agent_id'   => 'nullable|uuid',
+    ]);
+
+    $session = ChatSession::findOrFail($data['session_id']);
+
+    // Mark session as with_agent
+    if ($session->status === 'waiting_agent') {
+        $session->update([
+            'status'           => 'with_agent',
+            'agent_joined_at'  => now(),
+        ]);
+    }
+
+    $message = ChatMessage::create([
+        'session_id' => $data['session_id'],
+        'sender'     => 'agent',
+        'message'    => $data['message'],
+        'agent_id'   => $data['agent_id'] ?? null,
+    ]);
+
+    return response()->json([
+        'message' => $message,
+        'status'  => 'sent',
+    ]);
+}
+
+// Close a session
+public function closeSession(Request $request, string $sessionId)
+{
+    $session = ChatSession::findOrFail($sessionId);
+    $session->update(['status' => 'closed']);
+
+    ChatMessage::create([
+        'session_id' => $sessionId,
+        'sender'     => 'bot',
+        'message'    => 'This support session has been closed by an agent. Thank you for contacting Hyperlink Network!',
+    ]);
+
+    return response()->json(['message' => 'Session closed.']);
+}
 }

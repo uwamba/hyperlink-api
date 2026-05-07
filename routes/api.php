@@ -49,6 +49,12 @@ Route::post('/supports/{id}/send-feedback', [SupportController::class, 'sendFeed
 Route::middleware('auth:api')->group(function () {
 
 
+// Agent dashboard routes
+Route::get('/chatbot/sessions',                    [ChatbotController::class, 'getSessions']);
+Route::post('/chatbot/agent-reply',                [ChatbotController::class, 'agentReply']);
+Route::post('/chatbot/sessions/{sessionId}/close', [ChatbotController::class, 'closeSession']);
+
+
 
 Route::get('/stats/user-performance', [UserPerformanceController::class, 'index']);
 Route::get('/stats/performance-payments', [UserPerformanceController::class, 'performancePayments']);
