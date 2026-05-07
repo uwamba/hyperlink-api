@@ -51,7 +51,7 @@ Route::get('/stats/purchases', [UserPerformanceController::class, 'purchases']);
 Route::get('/stats/assets', [UserPerformanceController::class, 'assets']);
 
 
-Route::post('/chatbot', [ChatbotController::class, 'reply']);
+
 
     Route::middleware('role:super_user')->group(function () {
 
@@ -73,7 +73,7 @@ Route::post('/chatbot', [ChatbotController::class, 'reply']);
 
 
 
-
+    Route::post('/chatbot', [ChatbotController::class, 'reply']);
     Route::get('user', [AuthController::class, 'user']);
     Route::post('logout', [AuthController::class, 'logout']);
 
