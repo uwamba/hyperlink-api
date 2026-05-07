@@ -27,7 +27,13 @@ use App\Rest\Controllers\UserPerformanceController;
 use App\Rest\Controllers\ChatbotController;
 
 
-Route::post('/chatbot', [ChatbotController::class, 'reply']);
+// Chatbot - public
+Route::post('/chatbot/session',       [ChatbotController::class, 'startSession']);
+Route::post('/chatbot/reply',         [ChatbotController::class, 'reply']);
+Route::post('/chatbot/select-issue',  [ChatbotController::class, 'selectIssue']);
+Route::post('/chatbot/request-agent', [ChatbotController::class, 'requestAgent']);
+Route::get('/chatbot/history/{sessionId}', [ChatbotController::class, 'getHistory']);
+
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
