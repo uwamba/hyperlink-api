@@ -25,6 +25,9 @@ use App\Rest\Controllers\PettyCashFloatRequestController;
 use App\Rest\Controllers\FloatTransactionController;
 use App\Rest\Controllers\UserPerformanceController;
 use App\Rest\Controllers\ChatbotController;
+
+
+Route::post('/chatbot', [ChatbotController::class, 'reply']);
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
@@ -73,7 +76,7 @@ Route::get('/stats/assets', [UserPerformanceController::class, 'assets']);
 
 
 
-    Route::post('/chatbot', [ChatbotController::class, 'reply']);
+
     Route::get('user', [AuthController::class, 'user']);
     Route::post('logout', [AuthController::class, 'logout']);
 
