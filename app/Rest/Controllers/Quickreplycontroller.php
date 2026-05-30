@@ -49,18 +49,24 @@ class QuickReplyController extends RestController
     public function store(Request $request)
     {
         $data = $request->validate([
-            'label'    => 'required|string|max:100',
-            'text'     => 'required|string|max:2000',
-            'category' => 'nullable|string|max:50',
+            'label'           => 'required|string|max:100',
+            'text'            => 'required|string|max:2000',
+            'category'        => 'nullable|string|max:50',
+            'attachment_url'  => 'nullable|string',
+            'attachment_name' => 'nullable|string|max:255',
+            'attachment_type' => 'nullable|in:image,pdf',
         ]);
 
         $all = $this->readAll();
 
         $newReply = [
-            'id'       => (string) Str::uuid(),
-            'label'    => $data['label'],
-            'category' => $data['category'] ?? 'General',
-            'text'     => $data['text'],
+            'id'              => (string) Str::uuid(),
+            'label'           => $data['label'],
+            'category'        => $data['category'] ?? 'General',
+            'text'            => $data['text'],
+            'attachment_url'  => $data['attachment_url'] ?? null,
+            'attachment_name' => $data['attachment_name'] ?? null,
+            'attachment_type' => $data['attachment_type'] ?? null,
         ];
 
         $all[] = $newReply;
@@ -73,9 +79,12 @@ class QuickReplyController extends RestController
     public function update(Request $request, string $id)
     {
         $data = $request->validate([
-            'label'    => 'sometimes|string|max:100',
-            'text'     => 'sometimes|string|max:2000',
-            'category' => 'nullable|string|max:50',
+            'label'           => 'sometimes|string|max:100',
+            'text'            => 'sometimes|string|max:2000',
+            'category'        => 'nullable|string|max:50',
+            'attachment_url'  => 'nullable|string',
+            'attachment_name' => 'nullable|string|max:255',
+            'attachment_type' => 'nullable|in:image,pdf',
         ]);
 
         $all = $this->readAll();
@@ -112,4 +121,5 @@ class QuickReplyController extends RestController
         $this->writeAll($filtered);
         return response()->json(['message' => 'Deleted successfully.']);
     }
+    
 }

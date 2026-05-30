@@ -396,4 +396,19 @@ public function cleanupAttachments(Request $request)
         'kept'    => $result['kept'],
     ]);
 }
+public function uploadQuickReplyAttachment(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+    ]);
+
+    $service    = new AttachmentService();
+    $attachment = $service->store($request->file('file'), 'quick-reply');
+
+    return response()->json([
+        'url'  => $attachment['url'],
+        'type' => $attachment['type'],
+        'name' => $attachment['name'],
+    ], 201);
+}
 }

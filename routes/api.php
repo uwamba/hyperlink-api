@@ -43,6 +43,7 @@ Route::delete('/chatbot/quick-replies/{id}', [QuickReplyController::class, 'dest
 
 Route::post('/chatbot/upload-attachment',    [ChatbotController::class, 'uploadAttachment']);
 Route::post('/chatbot/cleanup-attachments',  [ChatbotController::class, 'cleanupAttachments']);
+Route::post('/chatbot/upload-quick-reply-attachment', [ChatbotController::class, 'uploadQuickReplyAttachment']);
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
