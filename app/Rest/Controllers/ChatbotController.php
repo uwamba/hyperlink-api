@@ -88,7 +88,7 @@ class ChatbotController extends RestController
     }
 
     // Step 2: Send message in a session
-    public function reply(Request $request)
+   public function reply(Request $request)
 {
     $data = $request->validate([
         'session_id' => 'required|uuid|exists:chat_sessions,id',
@@ -104,7 +104,7 @@ class ChatbotController extends RestController
         'message'    => $data['message'],
     ]);
 
-    // ── If agent has joined, do NOT respond with bot ──
+    // If agent has joined, do NOT respond with bot
     if (in_array($session->status, ['with_agent', 'waiting_agent'])) {
         return response()->json([
             'reply'  => null,
@@ -112,8 +112,9 @@ class ChatbotController extends RestController
         ]);
     }
 
-    // Bot reply only when no agent involved
-    $replyText = $this->findReply(strtolower(trim($data['message'])));
+    // ── OpenAI reply (replaces findReply) ──
+    $ai        = new OpenAIService();
+    $replyText = $ai->reply($session->id, $data['message']);
 
     $botMessage = ChatMessage::create([
         'session_id' => $session->id,
@@ -129,36 +130,37 @@ class ChatbotController extends RestController
 }
 
     // Step 3: User selects a quick issue
-    public function selectIssue(Request $request)
-    {
-        $data = $request->validate([
-            'session_id' => 'required|uuid|exists:chat_sessions,id',
-            'issue'      => 'required|string|max:255',
-        ]);
+    ppublic function selectIssue(Request $request)
+{
+    $data = $request->validate([
+        'session_id' => 'required|uuid|exists:chat_sessions,id',
+        'issue'      => 'required|string|max:255',
+    ]);
 
-        $session = ChatSession::findOrFail($data['session_id']);
-        $session->update(['issue_category' => $data['issue']]);
+    $session = ChatSession::findOrFail($data['session_id']);
+    $session->update(['issue_category' => $data['issue']]);
 
-        // Save as user message
-        ChatMessage::create([
-            'session_id' => $session->id,
-            'sender'     => 'user',
-            'message'    => $data['issue'],
-        ]);
+    ChatMessage::create([
+        'session_id' => $session->id,
+        'sender'     => 'user',
+        'message'    => $data['issue'],
+    ]);
 
-        $replyText = $this->findReply(strtolower($data['issue']));
+    // ── OpenAI reply ──
+    $ai        = new OpenAIService();
+    $replyText = $ai->reply($session->id, $data['issue']);
 
-        $botMessage = ChatMessage::create([
-            'session_id' => $session->id,
-            'sender'     => 'bot',
-            'message'    => $replyText,
-        ]);
+    ChatMessage::create([
+        'session_id' => $session->id,
+        'sender'     => 'bot',
+        'message'    => $replyText,
+    ]);
 
-        return response()->json([
-            'reply'  => $replyText,
-            'status' => 'success',
-        ]);
-    }
+    return response()->json([
+        'reply'  => $replyText,
+        'status' => 'success',
+    ]);
+}
 
     // Step 4: Request agent
     public function requestAgent(Request $request)
