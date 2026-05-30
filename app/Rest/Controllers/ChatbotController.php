@@ -9,6 +9,7 @@ use App\Models\ChatSession;
 use App\Models\ChatMessage;
 use App\Models\Client;
 use App\Services\OpenAIService;
+use App\Services\AttachmentService; 
 
 class ChatbotController extends RestController
 {
