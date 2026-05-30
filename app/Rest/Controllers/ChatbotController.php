@@ -286,4 +286,68 @@ public function closeSession(Request $request, string $sessionId)
 
     return response()->json(['message' => 'Session closed.']);
 }
+// Agent AI suggest — generates a reply draft based on context provided by agent
+public function agentAiSuggest(Request $request)
+{
+    $data = $request->validate([
+        'session_id' => 'required|uuid|exists:chat_sessions,id',
+        'context'    => 'required|string|max:1000',
+    ]);
+
+    // Load recent chat history for this session (last 10 messages)
+    $history = ChatMessage::where('session_id', $data['session_id'])
+        ->orderBy('created_at', 'desc')
+        ->limit(10)
+        ->get()
+        ->reverse();
+
+    $messages = [
+        [
+            'role'    => 'system',
+            'content' => "You are an expert support agent assistant for Hyperlink Network, an internet provider using Starlink in Rwanda.
+Your job is to help support agents draft professional, friendly, and concise replies to customers.
+The agent will describe the situation. Generate a ready-to-send reply the agent can send directly to the customer.
+Keep it short (2-4 sentences), empathetic, and action-oriented.
+Do NOT include any preamble like 'Here is a reply:' — just write the reply text directly.",
+        ],
+    ];
+
+    foreach ($history as $msg) {
+        $messages[] = [
+            'role'    => $msg->sender === 'user' ? 'user' : 'assistant',
+            'content' => $msg->message,
+        ];
+    }
+
+    $messages[] = [
+        'role'    => 'user',
+        'content' => "Agent context: {$data['context']}\n\nDraft a reply I can send to the customer.",
+    ];
+
+    try {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.openai.key'),
+            'Content-Type'  => 'application/json',
+        ])
+        ->timeout(30)
+        ->post('https://api.openai.com/v1/chat/completions', [
+            'model'       => config('services.openai.model', 'gpt-4o-mini'),
+            'messages'    => $messages,
+            'max_tokens'  => 300,
+            'temperature' => 0.5,
+        ]);
+
+        if ($response->failed()) {
+            return response()->json(['suggestion' => null, 'error' => 'AI unavailable'], 200);
+        }
+
+        $suggestion = $response->json('choices.0.message.content');
+
+        return response()->json(['suggestion' => $suggestion]);
+
+    } catch (\Exception $e) {
+        Log::error('Agent AI suggest error: ' . $e->getMessage());
+        return response()->json(['suggestion' => null, 'error' => 'AI unavailable'], 200);
+    }
+}
 }

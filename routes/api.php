@@ -33,6 +33,7 @@ Route::post('/chatbot/reply',         [ChatbotController::class, 'reply']);
 Route::post('/chatbot/select-issue',  [ChatbotController::class, 'selectIssue']);
 Route::post('/chatbot/request-agent', [ChatbotController::class, 'requestAgent']);
 Route::get('/chatbot/history/{sessionId}', [ChatbotController::class, 'getHistory']);
+Route::post('/chatbot/agent-ai-suggest', [ChatbotController::class, 'agentAiSuggest']);
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
