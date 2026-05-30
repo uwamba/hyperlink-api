@@ -54,40 +54,63 @@ class ChatbotController extends RestController
 
     // Step 1: Start session — verify identity
     public function startSession(Request $request)
-    {
-        $data = $request->validate([
-            'name'  => 'required|string|max:255',
-            'email' => 'required|email',
-            'phone' => 'required|string|max:20',
-        ]);
+{
+    $data = $request->validate([
+        'name'  => 'required|string|max:255',
+        'email' => 'required|email',
+        'phone' => 'required|string|max:20',
+    ]);
 
-        // Check if existing client
-        $client = Client::where('email', $data['email'])->first();
+    // Check if active/waiting session already exists for this email
+    $existing = ChatSession::where('email', $data['email'])
+        ->whereIn('status', ['active', 'waiting_agent', 'with_agent'])
+        ->latest()
+        ->first();
 
-        $session = ChatSession::create([
-            'name'                => $data['name'],
-            'email'               => $data['email'],
-            'phone'               => $data['phone'],
-            'client_id'           => $client?->id,
-            'is_verified_client'  => $client !== null,
-            'status'              => 'active',
-        ]);
-
-        // Save welcome message
-        ChatMessage::create([
-            'session_id' => $session->id,
-            'sender'     => 'bot',
-            'message'    => $client
-                ? "Welcome back, {$data['name']}! 👋 I can see you're an existing Hyperlink client. How can I help you today?"
-                : "Hello {$data['name']}! 👋 Welcome to Hyperlink Network support. How can I help you today?",
-        ]);
+    if ($existing) {
+        // Return the existing session instead of creating a new one
+        $lastMessage = ChatMessage::where('session_id', $existing->id)
+            ->latest()
+            ->first();
 
         return response()->json([
-            'session_id'          => $session->id,
-            'is_verified_client'  => $session->is_verified_client,
-            'welcome_message'     => ChatMessage::where('session_id', $session->id)->first(),
-        ], 201);
+            'session_id'         => $existing->id,
+            'is_verified_client' => $existing->is_verified_client,
+            'resumed'            => true,
+            'welcome_message'    => $lastMessage ?? ChatMessage::where('session_id', $existing->id)->first(),
+        ], 200);
     }
+
+    // Close any old closed sessions — optional cleanup
+    // No action needed, closed sessions stay for history
+
+    // Create new session
+    $client = Client::where('email', $data['email'])->first();
+
+    $session = ChatSession::create([
+        'name'               => $data['name'],
+        'email'              => $data['email'],
+        'phone'              => $data['phone'],
+        'client_id'          => $client?->id,
+        'is_verified_client' => $client !== null,
+        'status'             => 'active',
+    ]);
+
+    $welcomeMsg = ChatMessage::create([
+        'session_id' => $session->id,
+        'sender'     => 'bot',
+        'message'    => $client
+            ? "Welcome back, {$data['name']}! 👋 I can see you're an existing Hyperlink client. How can I help you today?"
+            : "Hello {$data['name']}! 👋 Welcome to Hyperlink Network support. How can I help you today?",
+    ]);
+
+    return response()->json([
+        'session_id'         => $session->id,
+        'is_verified_client' => $session->is_verified_client,
+        'resumed'            => false,
+        'welcome_message'    => $welcomeMsg,
+    ], 201);
+}
 
     // Step 2: Send message in a session
    public function reply(Request $request)
