@@ -65,7 +65,7 @@ Route::get('/payments/{id}/proof', [PaymentController::class, 'getProof']);
 Route::get('/chatbot/sessions',                    [ChatbotController::class, 'getSessions']);
 Route::post('/chatbot/agent-reply',                [ChatbotController::class, 'agentReply']);
 Route::post('/chatbot/sessions/{sessionId}/close', [ChatbotController::class, 'closeSession']);
-
+Route::get('/invoices/{id}/payments', [InvoiceController::class, 'payments']);
 
 
 Route::get('/stats/user-performance', [UserPerformanceController::class, 'index']);

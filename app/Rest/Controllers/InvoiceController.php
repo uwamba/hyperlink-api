@@ -221,6 +221,14 @@ public function generate(Request $request)
 
     }
 
+    public function payments(string $id)
+{
+    $invoice  = \App\Models\Invoice::with('payments')->findOrFail($id);
+    return response()->json([
+        'payments' => $invoice->payments,
+    ]);
+}
+
 
 
 }
