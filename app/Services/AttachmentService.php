@@ -10,10 +10,11 @@ class AttachmentService
 {
     private string $disk = 'public';
     private string $folder = 'chat-attachments';
-    private int $maxAgeDays = 30; // auto-clean files older than 30 days
+    private int $maxAgeDays = 30;
 
     // ── Store a file and return its public URL ────────────────────────
-    public function store(UploadedFile $file, string $sessionId): array
+    // $source: 'session' for chat messages, 'quick-reply' for quick reply definitions
+    public function store(UploadedFile $file, string $sessionId, string $source = 'session'): array
     {
         $this->ensureStorageLinked();
 
@@ -25,7 +26,7 @@ class AttachmentService
         $url  = Storage::disk($this->disk)->url($path);
         $type = $this->resolveType($file->getMimeType());
 
-        // Save metadata to index file
+        // Save metadata — mark quick-reply attachments so cleanup skips them
         $this->appendToIndex([
             'filename'   => $filename,
             'path'       => $path,
@@ -34,6 +35,7 @@ class AttachmentService
             'name'       => $file->getClientOriginalName(),
             'size'       => $file->getSize(),
             'session_id' => $sessionId,
+            'source'     => $source, // 'session' or 'quick-reply'
             'created_at' => now()->toISOString(),
         ]);
 
@@ -66,21 +68,28 @@ class AttachmentService
         file_put_contents($indexPath, json_encode($index, JSON_PRETTY_PRINT));
     }
 
-    // ── Auto cleanup files older than $maxAgeDays ─────────────────────
+    // ── Auto cleanup — skips quick-reply attachments ──────────────────
     public function cleanup(): array
     {
         $indexPath = storage_path('app/chat_attachments_index.json');
-        if (!file_exists($indexPath)) return ['deleted' => 0, 'kept' => 0];
+        if (!file_exists($indexPath)) return ['deleted' => 0, 'kept' => 0, 'protected' => 0];
 
         $index     = json_decode(file_get_contents($indexPath), true) ?? [];
         $cutoff    = now()->subDays($this->maxAgeDays);
         $kept      = [];
         $deleted   = 0;
+        $protected = 0;
 
         foreach ($index as $entry) {
+            // Never delete quick-reply attachments — they are permanent
+            if (($entry['source'] ?? 'session') === 'quick-reply') {
+                $kept[] = $entry;
+                $protected++;
+                continue;
+            }
+
             $createdAt = \Carbon\Carbon::parse($entry['created_at'] ?? now());
             if ($createdAt->lt($cutoff)) {
-                // Delete the actual file
                 if (Storage::disk($this->disk)->exists($entry['path'] ?? '')) {
                     Storage::disk($this->disk)->delete($entry['path']);
                 }
@@ -92,14 +101,13 @@ class AttachmentService
 
         file_put_contents($indexPath, json_encode(array_values($kept), JSON_PRETTY_PRINT));
 
-        return ['deleted' => $deleted, 'kept' => count($kept)];
+        return ['deleted' => $deleted, 'kept' => count($kept), 'protected' => $protected];
     }
 
     // ── Ensure storage is linked ──────────────────────────────────────
     public function ensureStorageLinked(): void
     {
         $publicPath = public_path('storage');
-        $storagePath = storage_path('app/public');
 
         if (!file_exists($publicPath)) {
             \Artisan::call('storage:link');

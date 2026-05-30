@@ -408,17 +408,8 @@ public function uploadAttachment(Request $request)
 }
 
 // POST /chatbot/cleanup-attachments
-public function cleanupAttachments(Request $request)
-{
-    $service = new AttachmentService();
-    $result  = $service->cleanup();
 
-    return response()->json([
-        'message' => "Cleanup complete. {$result['deleted']} file(s) deleted, {$result['kept']} kept.",
-        'deleted' => $result['deleted'],
-        'kept'    => $result['kept'],
-    ]);
-}
+
 public function uploadQuickReplyAttachment(Request $request)
 {
     $request->validate([
@@ -426,12 +417,33 @@ public function uploadQuickReplyAttachment(Request $request)
     ]);
 
     $service    = new AttachmentService();
-    $attachment = $service->store($request->file('file'), 'quick-reply');
+    // Pass 'quick-reply' as source — cleanup will permanently skip these files
+    $attachment = $service->store($request->file('file'), 'quick-reply', 'quick-reply');
 
     return response()->json([
         'url'  => $attachment['url'],
         'type' => $attachment['type'],
         'name' => $attachment['name'],
     ], 201);
+}
+
+// POST /chatbot/cleanup-attachments
+// Shows how many were protected (quick-reply attachments)
+public function cleanupAttachments(Request $request)
+{
+    $service = new AttachmentService();
+    $result  = $service->cleanup();
+
+    $msg = "Cleanup complete. {$result['deleted']} file(s) deleted, {$result['kept']} kept.";
+    if (($result['protected'] ?? 0) > 0) {
+        $msg .= " {$result['protected']} quick reply attachment(s) protected.";
+    }
+
+    return response()->json([
+        'message'   => $msg,
+        'deleted'   => $result['deleted'],
+        'kept'      => $result['kept'],
+        'protected' => $result['protected'] ?? 0,
+    ]);
 }
 }
