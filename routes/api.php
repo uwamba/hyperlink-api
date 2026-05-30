@@ -60,7 +60,7 @@ Route::post('/verify-otp', [SupportController::class, 'verifyOtp']);
 Route::post('/supports/{id}/send-feedback', [SupportController::class, 'sendFeedback']);
 Route::middleware('auth:api')->group(function () {
 
-
+Route::get('/payments/{id}/proof', [PaymentController::class, 'getProof']);
 // Agent dashboard routes
 Route::get('/chatbot/sessions',                    [ChatbotController::class, 'getSessions']);
 Route::post('/chatbot/agent-reply',                [ChatbotController::class, 'agentReply']);

@@ -4,6 +4,7 @@ namespace App\Rest\Controllers;
 
 use App\Models\Payment;
 use App\Rest\Resources\PaymentResource;
+use App\Services\PaymentProofService;
 use Illuminate\Http\Request;
 use App\Rest\Controller as RestController;
 
@@ -23,23 +24,40 @@ class PaymentController extends RestController
         return new PaymentResource($payment);
     }
 
-    // Store a new payment
+    // Store a new payment — requires proof attachment
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'client_id' => 'required|uuid',
-            'invoice_id' => 'required|uuid',
-            'amount_paid' => 'required|numeric',
+        $request->validate([
+            'client_id'      => 'required|uuid',
+            'invoice_id'     => 'required|uuid',
+            'amount_paid'    => 'required|numeric',
             'payment_method' => 'required|string',
-            'transaction_id' => 'required|string|unique:payments',
+            'transaction_id' => 'nullable|string|unique:payments',
+            'proof'          => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
         ]);
 
-        $payment = Payment::create($validated);
+        $payment = Payment::create([
+            'client_id'      => $request->client_id,
+            'invoice_id'     => $request->invoice_id,
+            'amount_paid'    => $request->amount_paid,
+            'payment_method' => $request->payment_method,
+            'transaction_id' => $request->transaction_id ?? 'TXN-' . time(),
+            'status'         => 'completed',
+            'created_by'     => auth()->id() ?? null,
+        ]);
 
-        // Update the invoice status
+        // Store proof file
+        $proofService = new PaymentProofService();
+        $proof        = $proofService->store($request->file('proof'), $payment->id);
+
+        // Update invoice status
         $payment->invoice->updateStatus();
 
-        return new PaymentResource($payment);
+        return response()->json([
+            'message'   => 'Payment recorded successfully.',
+            'payment'   => new PaymentResource($payment),
+            'proof_url' => $proof['url'],
+        ], 201);
     }
 
     // Delete a payment
@@ -47,37 +65,38 @@ class PaymentController extends RestController
     {
         $payment = Payment::findOrFail($id);
         $payment->delete();
-
         return response()->json(['message' => 'Payment deleted successfully'], 200);
     }
 
-
-
+    // Update payment status (approve/reject)
     public function updateStatus(Request $request, Payment $payment)
     {
         $request->validate([
             'status' => 'required|in:approved,rejected',
         ]);
 
-        // Update payment status
         $payment->status = $request->status;
         $payment->save();
 
-        // Update invoice status accordingly
         if ($payment->invoice) {
             $invoice = $payment->invoice;
-
-            if ($payment->status === 'approved') {
-                $invoice->status = 'paid';
-            } elseif ($payment->status === 'rejected') {
-                $invoice->status = 'unpaid';
-            }
-
+            $invoice->status = $payment->status === 'approved' ? 'paid' : 'unpaid';
             $invoice->save();
         }
 
         return response()->json(['message' => 'Payment and invoice status updated successfully.']);
     }
 
+    // Get proof for a specific payment
+    public function getProof(string $id)
+    {
+        $service = new PaymentProofService();
+        $proof   = $service->getByPaymentId($id);
 
+        if (!$proof) {
+            return response()->json(['message' => 'No proof found for this payment.'], 404);
+        }
+
+        return response()->json(['proof' => $proof]);
+    }
 }

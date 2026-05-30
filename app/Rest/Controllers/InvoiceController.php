@@ -71,6 +71,21 @@ class InvoiceController extends RestController
 
         return new InvoiceResource($invoice);
     }
+    // POST /invoices/generate
+public function generate(Request $request)
+{
+    $service = new InvoiceGeneratorService();
+    $result  = $service->generateAll();
+ 
+    return response()->json([
+        'message' => "Done. {$result['created']} invoice(s) created, {$result['skipped']} skipped.",
+        'created' => $result['created'],
+        'skipped' => $result['skipped'],
+        'total'   => $result['total'],
+        'errors'  => $result['errors'],
+    ]);
+}
+
 
     // Update an existing invoice
     public function update(Request $request, $id)
