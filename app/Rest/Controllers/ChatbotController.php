@@ -350,4 +350,49 @@ Do NOT include any preamble like 'Here is a reply:' — just write the reply tex
         return response()->json(['suggestion' => null, 'error' => 'AI unavailable'], 200);
     }
 }
+
+public function uploadAttachment(Request $request)
+{
+    $request->validate([
+        'session_id' => 'required|uuid|exists:chat_sessions,id',
+        'sender'     => 'required|in:user,agent',
+        'file'       => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+    ]);
+
+    $session = ChatSession::findOrFail($request->session_id);
+
+    // Store file — all metadata goes to JSON index, nothing to DB columns
+    $service    = new AttachmentService();
+    $attachment = $service->store($request->file('file'), $session->id);
+
+    // Save ONE plain-text message so it appears in chat history
+    // Format: [IMAGE: filename.jpg | url] or [PDF: filename.pdf | url]
+    $tag     = strtoupper($attachment['type']); // IMAGE or PDF
+    $msgText = "[{$tag}: {$attachment['name']} | {$attachment['url']}]";
+
+    ChatMessage::create([
+        'session_id' => $session->id,
+        'sender'     => $request->sender,
+        'message'    => $msgText,
+    ]);
+
+    return response()->json([
+        'url'  => $attachment['url'],
+        'type' => $attachment['type'],
+        'name' => $attachment['name'],
+    ], 201);
+}
+
+// POST /chatbot/cleanup-attachments
+public function cleanupAttachments(Request $request)
+{
+    $service = new AttachmentService();
+    $result  = $service->cleanup();
+
+    return response()->json([
+        'message' => "Cleanup complete. {$result['deleted']} file(s) deleted, {$result['kept']} kept.",
+        'deleted' => $result['deleted'],
+        'kept'    => $result['kept'],
+    ]);
+}
 }

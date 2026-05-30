@@ -25,6 +25,7 @@ use App\Rest\Controllers\PettyCashFloatRequestController;
 use App\Rest\Controllers\FloatTransactionController;
 use App\Rest\Controllers\UserPerformanceController;
 use App\Rest\Controllers\ChatbotController;
+use App\Rest\Controllers\QuickReplyController;
 
 
 // Chatbot - public
@@ -34,6 +35,11 @@ Route::post('/chatbot/select-issue',  [ChatbotController::class, 'selectIssue'])
 Route::post('/chatbot/request-agent', [ChatbotController::class, 'requestAgent']);
 Route::get('/chatbot/history/{sessionId}', [ChatbotController::class, 'getHistory']);
 Route::post('/chatbot/agent-ai-suggest', [ChatbotController::class, 'agentAiSuggest']);
+
+Route::get('/chatbot/quick-replies',         [QuickReplyController::class, 'index']);
+Route::post('/chatbot/quick-replies',        [QuickReplyController::class, 'store']);
+Route::put('/chatbot/quick-replies/{id}',    [QuickReplyController::class, 'update']);
+Route::delete('/chatbot/quick-replies/{id}', [QuickReplyController::class, 'destroy']);
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);
