@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 use App\Models\Client;
+use App\Services\OpenAIService;
 
 class ChatbotController extends RestController
 {
