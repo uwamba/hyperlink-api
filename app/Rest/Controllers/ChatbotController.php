@@ -130,7 +130,7 @@ class ChatbotController extends RestController
 }
 
     // Step 3: User selects a quick issue
-    ppublic function selectIssue(Request $request)
+    public function selectIssue(Request $request)
 {
     $data = $request->validate([
         'session_id' => 'required|uuid|exists:chat_sessions,id',
