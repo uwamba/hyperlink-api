@@ -36,14 +36,15 @@ Route::post('/chatbot/request-agent', [ChatbotController::class, 'requestAgent']
 Route::get('/chatbot/history/{sessionId}', [ChatbotController::class, 'getHistory']);
 Route::post('/chatbot/agent-ai-suggest', [ChatbotController::class, 'agentAiSuggest']);
 
-Route::get('/chatbot/quick-replies',         [QuickReplyController::class, 'index']);
-Route::post('/chatbot/quick-replies',        [QuickReplyController::class, 'store']);
-Route::put('/chatbot/quick-replies/{id}',    [QuickReplyController::class, 'update']);
-Route::delete('/chatbot/quick-replies/{id}', [QuickReplyController::class, 'destroy']);
+Route::get('/chatbot/quick-replies',         [QuickReplyController::class, 'listReplies']);
+Route::post('/chatbot/quick-replies',        [QuickReplyController::class, 'storeReply']);
+Route::put('/chatbot/quick-replies/{id}',    [QuickReplyController::class, 'updateReply']);
+Route::delete('/chatbot/quick-replies/{id}', [QuickReplyController::class, 'deleteReply']);
 
 Route::post('/chatbot/upload-attachment',    [ChatbotController::class, 'uploadAttachment']);
 Route::post('/chatbot/cleanup-attachments',  [ChatbotController::class, 'cleanupAttachments']);
 Route::post('/chatbot/upload-quick-reply-attachment', [ChatbotController::class, 'uploadQuickReplyAttachment']);
+
 
 Route::middleware('auth:api')->resource('clients', ClientController::class);
 Route::post('register', [AuthController::class, 'register']);

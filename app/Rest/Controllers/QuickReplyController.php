@@ -40,13 +40,13 @@ class QuickReplyController extends RestController
     }
 
     // GET /chatbot/quick-replies
-    public function index()
+    public function listReplies()
     {
         return response()->json(['quick_replies' => $this->readAll()]);
     }
 
     // POST /chatbot/quick-replies
-    public function store(Request $request)
+    public function storeReply(Request $request)
     {
         $data = $request->validate([
             'label'           => 'required|string|max:100',
@@ -76,7 +76,7 @@ class QuickReplyController extends RestController
     }
 
     // PUT /chatbot/quick-replies/{id}
-    public function update(Request $request, string $id)
+    public function updateReply(Request $request, string $id)
     {
         $data = $request->validate([
             'label'           => 'sometimes|string|max:100',
@@ -109,7 +109,7 @@ class QuickReplyController extends RestController
     }
 
     // DELETE /chatbot/quick-replies/{id}
-    public function destroy(string $id)
+    public function deleteReply(string $id)
     {
         $all = $this->readAll();
         $filtered = array_filter($all, fn($r) => $r['id'] !== $id);
