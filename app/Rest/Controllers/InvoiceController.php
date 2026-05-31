@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use Barryvdh\DomPDF\Facade\Pdf as pdf;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Services\InvoiceGeneratorService;
 
 use App\Models\DeliveryNote;
 
