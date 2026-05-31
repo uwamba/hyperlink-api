@@ -16,10 +16,6 @@ class InvoiceGeneratorService
         $this->stateFile = storage_path('app/invoice_generator_state.json');
     }
 
-    /**
-     * Generate invoices for all active subscriptions.
-     * Returns detailed report including last run info.
-     */
     public function generateAll(): array
     {
         $lastState = $this->loadState();
@@ -29,22 +25,29 @@ class InvoiceGeneratorService
             ->where('status', 'active')
             ->get();
 
-        $created      = 0;
-        $skipped      = 0;
-        $noInvoice    = 0; // active subs with no invoices at all
-        $errors       = [];
-        $details      = [];
+        $created   = 0;
+        $skipped   = 0;
+        $noInvoice = 0;
+        $errors    = [];
+        $details   = [];
 
         foreach ($subscriptions as $subscription) {
+            // Count subs without ANY invoice BEFORE generation
+            $hadInvoiceBefore = Invoice::where('client_id', $subscription->client_id)
+                ->where('invoice_data_type', 'subscription')
+                ->where('invoice_data_id', $subscription->id)
+                ->exists();
+
+            if (!$hadInvoiceBefore) $noInvoice++;
+
             try {
                 $result = $this->generateForSubscription($subscription);
 
-                $hasAnyInvoice = Invoice::where('client_id', $subscription->client_id)
-                    ->where('invoice_data_type', 'subscription')
-                    ->where('invoice_data_id', $subscription->id)
-                    ->exists();
-
-                if (!$hasAnyInvoice) $noInvoice++;
+                if (str_starts_with($result, 'created:')) {
+                    $created += (int) explode(':', $result)[1];
+                } elseif ($result === 'skipped') {
+                    $skipped++;
+                }
 
                 $details[] = [
                     'subscription_id' => $subscription->id,
@@ -52,13 +55,11 @@ class InvoiceGeneratorService
                     'plan'            => $subscription->plan?->name ?? 'Unknown',
                     'start_date'      => $subscription->start_date,
                     'billing_date'    => $subscription->billing_date,
+                    'had_invoice'     => $hadInvoiceBefore,
                     'result'          => $result,
                 ];
-
-                if ($result === 'created') $created++;
-                if ($result === 'skipped') $skipped++;
             } catch (\Exception $e) {
-                $errors[] = [
+                $errors[]  = [
                     'subscription_id' => $subscription->id,
                     'client'          => $subscription->client?->name ?? 'Unknown',
                     'error'           => $e->getMessage(),
@@ -67,37 +68,39 @@ class InvoiceGeneratorService
                     'subscription_id' => $subscription->id,
                     'client'          => $subscription->client?->name ?? 'Unknown',
                     'plan'            => $subscription->plan?->name ?? 'Unknown',
+                    'start_date'      => $subscription->start_date,
+                    'billing_date'    => $subscription->billing_date,
+                    'had_invoice'     => $hadInvoiceBefore,
                     'result'          => 'error: ' . $e->getMessage(),
                 ];
             }
         }
 
-        // Save state
-        $state = [
-            'last_run'           => $startTime->toISOString(),
-            'last_run_human'     => $startTime->toDateTimeString(),
-            'total_active'       => $subscriptions->count(),
-            'last_created'       => $created,
-            'last_skipped'       => $skipped,
-            'last_no_invoice'    => $noInvoice,
-        ];
-        $this->saveState($state);
+        $this->saveState([
+            'last_run'        => $startTime->toISOString(),
+            'last_run_human'  => $startTime->toDateTimeString(),
+            'total_active'    => $subscriptions->count(),
+            'last_created'    => $created,
+            'last_skipped'    => $skipped,
+            'last_no_invoice' => $noInvoice,
+        ]);
 
         return [
-            'created'      => $created,
-            'skipped'      => $skipped,
-            'no_invoice'   => $noInvoice,
-            'total'        => $subscriptions->count(),
-            'errors'       => $errors,
-            'details'      => $details,
-            'last_run'     => $lastState['last_run_human'] ?? 'Never',
-            'current_run'  => $startTime->toDateTimeString(),
+            'created'     => $created,
+            'skipped'     => $skipped,
+            'no_invoice'  => $noInvoice,
+            'total'       => $subscriptions->count(),
+            'errors'      => $errors,
+            'details'     => $details,
+            'last_run'    => $lastState['last_run_human'] ?? 'Never',
+            'current_run' => $startTime->toDateTimeString(),
         ];
     }
 
     /**
-     * Generate invoice for a single subscription.
-     * Logic: generate an invoice for each 30-day period since start/billing date up to today.
+     * Walk forward from anchor date in 30-day steps.
+     * Generate an invoice for every period whose start <= today.
+     * Skip if invoice with that due_date already exists.
      */
     public function generateForSubscription(Subscription $subscription): string
     {
@@ -105,27 +108,18 @@ class InvoiceGeneratorService
             return 'skipped_no_client_or_plan';
         }
 
-        // Anchor = billing_date if set, otherwise start_date
-        $anchor = Carbon::parse(
+        $anchor      = Carbon::parse(
             $subscription->billing_date ?? $subscription->start_date
         )->startOfDay();
 
-        $today  = Carbon::today();
-        $generated = 0;
-
-        // Walk forward from anchor date in 30-day increments
-        // Generate an invoice for each period that has already started
+        $today       = Carbon::today();
+        $generated   = 0;
+        $maxPeriods  = 36; // safety cap — 3 years max
         $periodStart = $anchor->copy();
 
-        // Safety limit — max 24 periods (2 years)
-        $maxIterations = 24;
-        $iterations    = 0;
-
-        while ($periodStart->lte($today) && $iterations < $maxIterations) {
-            $iterations++;
+        while ($periodStart->lte($today) && $maxPeriods-- > 0) {
             $dueDate = $periodStart->copy()->addDays(30);
 
-            // Check if invoice already exists for this exact period
             $exists = Invoice::where('client_id', $subscription->client_id)
                 ->where('invoice_data_type', 'subscription')
                 ->where('invoice_data_id', $subscription->id)
@@ -133,30 +127,26 @@ class InvoiceGeneratorService
                 ->exists();
 
             if (!$exists) {
-                $invoiceNo = 'INV-' . strtoupper(Str::random(4)) . '-' . $periodStart->format('Ymd');
-
                 Invoice::create([
                     'client_id'         => $subscription->client_id,
-                    'invoice_no'        => $invoiceNo,
+                    'invoice_no'        => 'INV-' . strtoupper(Str::random(6)) . '-' . $periodStart->format('Ymd'),
                     'amount'            => $subscription->plan->price,
                     'due_date'          => $dueDate->toDateString(),
+                    // overdue if due date is in the past, unpaid if in future
                     'status'            => $dueDate->lt($today) ? 'overdue' : 'unpaid',
                     'invoice_data_type' => 'subscription',
                     'invoice_data_id'   => $subscription->id,
                     'created_by'        => auth()->id() ?? null,
                 ]);
-
                 $generated++;
             }
 
-            // Move to next period
             $periodStart->addDays(30);
         }
 
         return $generated > 0 ? "created:{$generated}" : 'skipped';
     }
 
-    // ── State persistence ─────────────────────────────────────────────────
     private function loadState(): array
     {
         if (!file_exists($this->stateFile)) return [];
