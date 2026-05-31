@@ -71,21 +71,6 @@ class InvoiceController extends RestController
 
         return new InvoiceResource($invoice);
     }
-    // POST /invoices/generate
-public function generate(Request $request)
-{
-    $service = new InvoiceGeneratorService();
-    $result  = $service->generateAll();
- 
-    return response()->json([
-        'message' => "Done. {$result['created']} invoice(s) created, {$result['skipped']} skipped.",
-        'created' => $result['created'],
-        'skipped' => $result['skipped'],
-        'total'   => $result['total'],
-        'errors'  => $result['errors'],
-    ]);
-}
-
 
     // Update an existing invoice
     public function update(Request $request, $id)
@@ -226,6 +211,48 @@ public function generate(Request $request)
     $invoice  = \App\Models\Invoice::with('payments')->findOrFail($id);
     return response()->json([
         'payments' => $invoice->payments,
+    ]);
+}
+
+public function generate(Request $request)
+{
+    $service = new InvoiceGeneratorService();
+    $result  = $service->generateAll();
+
+    $msg = "{$result['total']} active subscription(s) checked. "
+         . "{$result['created']} invoice(s) created, "
+         . "{$result['skipped']} already existed.";
+
+    if (count($result['errors']) > 0) {
+        $msg .= " " . count($result['errors']) . " error(s).";
+    }
+
+    return response()->json([
+        'message'      => $msg,
+        'created'      => $result['created'],
+        'skipped'      => $result['skipped'],
+        'no_invoice'   => $result['no_invoice'],
+        'total'        => $result['total'],
+        'errors'       => $result['errors'],
+        'details'      => $result['details'],
+        'last_run'     => $result['last_run'],
+        'current_run'  => $result['current_run'],
+    ]);
+}
+
+// GET /invoices/generate-status  — returns last run state without running again
+public function generateStatus(Request $request)
+{
+    $service = new InvoiceGeneratorService();
+    $state   = $service->getLastState();
+
+    return response()->json([
+        'last_run'        => $state['last_run_human'] ?? null,
+        'total_active'    => $state['total_active']   ?? 0,
+        'last_created'    => $state['last_created']   ?? 0,
+        'last_skipped'    => $state['last_skipped']   ?? 0,
+        'last_no_invoice' => $state['last_no_invoice']?? 0,
+        'never_run'       => empty($state),
     ]);
 }
 

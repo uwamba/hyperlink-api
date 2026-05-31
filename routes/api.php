@@ -67,6 +67,9 @@ Route::post('/chatbot/agent-reply',                [ChatbotController::class, 'a
 Route::post('/chatbot/sessions/{sessionId}/close', [ChatbotController::class, 'closeSession']);
 Route::get('/invoices/{id}/payments', [InvoiceController::class, 'payments']);
 
+Route::post('/invoices/generate', [InvoiceController::class, 'generate']);
+Route::get('/invoices/generate-status', [InvoiceController::class, 'generateStatus']);
+
 
 Route::get('/stats/user-performance', [UserPerformanceController::class, 'index']);
 Route::get('/stats/performance-payments', [UserPerformanceController::class, 'performancePayments']);
