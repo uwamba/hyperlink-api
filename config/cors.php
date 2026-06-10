@@ -6,6 +6,8 @@ return [
     'allowed_origins'          => [
         'https://test.hyperlinknetwork.com',
         'https://stage.hyperlinknetwork.com',
+        'https://admin.hyperlinknetwork.com',
+        'https://hyperlinknetwork.com',
         'http://localhost:3000',
     ],
     'allowed_origins_patterns' => [],
